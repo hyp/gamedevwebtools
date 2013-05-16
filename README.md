@@ -77,6 +77,8 @@ A sample application which integrates with the server is located in server/sampl
 * GPU debugging and profiling tools.
 * Integration with various game engines/frameworks.
 
+Contributors are welcome to this project.
+
 ### About
 
 Copyright (c) 2013 Alex Lorenz <hypothermia.frost@gmail.com>. All rights reserved.
