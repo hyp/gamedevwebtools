@@ -112,7 +112,7 @@ int main() {
 	
 	auto firstT = now();
 	auto lastT = firstT;	
-	uint32_t frameId = 0;
+	size_t frameId = 0;
 	float x = 0.0f;
 
 	// A dummy game loop.

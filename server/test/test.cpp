@@ -91,14 +91,6 @@ int main() {
 		auto end = begin + strlen(begin);
 		begin = skipSpaces(begin,end);
 		assert(begin == str + 2);
-		begin = skipAlnum(begin,end);
-		assert(begin == str + 8);
-		begin = skipSpaces(begin,end);
-		assert(begin == str + 12);
-		begin = skipDigits(begin,end);
-		assert(begin == end);
-		begin = skipSpaces(begin,end);
-		assert(begin == end);
 	}
 	
 	//Base64.

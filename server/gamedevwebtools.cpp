@@ -647,14 +647,6 @@ static const char *skipSpaces(const char *begin,const char *end) {
 	for(;begin < end && isspace(*begin);++begin) ;
 	return begin;
 }
-static const char *skipAlnum(const char *begin,const char *end) {
-	for(;begin < end && isalnum(*begin);++begin) ;
-	return begin;		
-}
-static const char *skipDigits(const char *begin,const char *end) {
-	for(;begin < end && isdigit(*begin);++begin) ;
-	return begin;		
-}
 	
 } // text
 

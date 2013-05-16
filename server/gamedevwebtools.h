@@ -134,8 +134,6 @@ public:
 			id(name),type(t_boolean),value(x) {}	
 		GAMEDEVWEBTOOLS_CONSTEXPR Field(const char *name,int32_t x) : 
 			id(name),type(t_i32),value(x) {}
-		GAMEDEVWEBTOOLS_CONSTEXPR Field(const char *name,uint32_t x) : 
-			id(name),type(t_isz),value(size_t(x)) {}
 		GAMEDEVWEBTOOLS_CONSTEXPR Field(const char *name,size_t x) : 
 			id(name),type(t_isz),value(x) {}
 		GAMEDEVWEBTOOLS_CONSTEXPR Field(const char *name,float x) : 

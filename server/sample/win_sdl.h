@@ -15,12 +15,12 @@ int SDL_CreateWindow(const char*,int,int,int,int,int) {
 }
 void SDL_DestroyWindow(int) {
 }
-uint64_t SDL_GetPerfomanceCounter () {
+uint64_t SDL_GetPerformanceCounter() {
 	uint64_t result;
 	QueryPerformanceCounter((LARGE_INTEGER*)&result);
 	return result;
 }
-uint64_t SDL_GetPerfomanceFrequency () {
+uint64_t SDL_GetPerformanceFrequency() {
 	uint64_t result;
 	QueryPerformanceFrequency((LARGE_INTEGER*)&result);
 	return result;
