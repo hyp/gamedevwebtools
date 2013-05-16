@@ -35,7 +35,7 @@ Messages
   * dt: real - the amount of time this task was running in seconds.
   * frame: int - frame id.
   
-* profiling.timer - timer profiling result.
+* profiling.timer - a single profiling result.
   * name: string - the name of this profiling timer.
   * samples: int - the amount of time samples that were taken.
   * mean: real - the mean time in seconds.
