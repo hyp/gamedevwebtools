@@ -10,7 +10,7 @@ Internet connection is **not** required and it works with Chrome, Firefox and Op
 
 - [Monitoring](http://gamedevwebtools.github.io/screenshots/monitoring.png)
 - [Frame delta time](http://gamedevwebtools.github.io/screenshots/framedt.png)
-- [Memory](http://gamedevwebtools.github.io/screenshots/memory.png)
+- [Memory usage](http://gamedevwebtools.github.io/screenshots/memory.png)
 - [Task and thread profiler](http://gamedevwebtools.github.io/screenshots/tasks.png)
 - [Timer profiling results](http://gamedevwebtools.github.io/screenshots/times.png)
 
