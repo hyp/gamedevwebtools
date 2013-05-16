@@ -8,17 +8,17 @@ Internet connection is **not** required and it works with Chrome, Firefox and Op
 
 #### Screenshots
 
-- [Triple]()
-- [Frame delta time](http://i.imgur.com/EoOCO8C.png)
-- [Memory](http://i.imgur.com/X9dLpDd.png)
-- [Task and thread profiler](http://i.imgur.com/fJnmGAD.png)
-- [Timer profiling results](http://i.imgur.com/9g85e60.png)
+- [Monitoring](http://gamedevwebtools.github.io/screenshots/monitoring.png)
+- [Frame delta time](http://gamedevwebtools.github.io/screenshots/framedt.png)
+- [Memory](http://gamedevwebtools.github.io/screenshots/memory.png)
+- [Task and thread profiler](http://gamedevwebtools.github.io/screenshots/tasks.png)
+- [Timer profiling results](http://gamedevwebtools.github.io/screenshots/times.png)
 
 ### Usage
 
 Open app/index.html in your browser to access the browser based client.
 
-Alternatively you can visit http://gamedevwebtools.github.io/.
+Alternatively you can visit [http://gamedevwebtools.github.io](http://gamedevwebtools.github.io).
 
 To provide a sample data generating server for the browser client, compile and run the  application located in the server/sample directory (VS project is included in vsproject folder, and CMakeLists.txt is provided for linux or a custom vs projects).
 

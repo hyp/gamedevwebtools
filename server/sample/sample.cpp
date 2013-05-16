@@ -146,9 +146,6 @@ int main() {
 				service.send(Message("logging.msg",
 					Message::Field("lvl",logging::Information),
 					Message::Field("msg","")));	
-					
-				service.send(Message("data.shader"),
-					"GLSL hello world",strlen("GLSL hello world"));
 			}
 					
 			// Some dummy task profiling times
