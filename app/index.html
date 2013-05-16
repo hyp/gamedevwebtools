@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Gamedev web tools</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- dependencies and stylesheet -->
+<link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+<link href="css/bootstrap-responsive.min.css" rel="stylesheet" media="screen">
+<link href="css/index.css" rel="stylesheet">
+
+<script src="js/dependencies/jquery-2.0.0.min.js"></script>	
+<script src="js/dependencies/bootstrap.min.js"></script>
+<script src="js/dependencies/jquery.jkey.min.js"></script>
+
+</head>
+<body>
+
+<div id="mainContainer" class="container-fluid">
+
+<!--Application bar-->
+<div class="row-fluid">
+<div class="well-small applicationBar">
+
+<form class="form-inline">
+<span id="applicationNotConnectedControls">
+	<span class="applicationBarTitle">
+		<i class="icon-wrench"></i>
+		<b>GDevWebTools</b>
+	</span>
+	<div class="input-append">
+	<input id="serverAddressInput" type="text" value=""/>
+	<button class="btn" type="button" 
+		title="Connect to the application/piping server">Connect</button>
+	</div>	
+</span>
+<span id="applicationConnectedControls" class="dontShowAtStart">
+	<button onClick="application.disconnect();" class="btn" type="button" title="Disconnect">
+	<i class="icon-arrow-left"></i></button>
+	
+	<span id="appTitle" class="applicationBarTitle">
+	<b>Sample app</b>
+	</span>
+
+	<span id="appRuntimeActions">
+	<div class="btn-group">
+	
+	<button onClick="application.activate();" class="btn" type="button" title="Pause/Play">
+	<i id="appActivateIcon" class="icon-pause"></i></button>
+	
+	<button id="appStepButton" class="btn dontShowAtStart" type="button" 
+	title="Step one frame"><i class="icon-step-forward"></i></button>
+	
+	<button onClick="application.quit();" class="btn" type="button" title="Exit">
+	<i class="icon-off"></i></button>
+	
+	</div>
+	
+	<button id="appKeyboardButton" type="button" 
+	class="btn btn-small" data-toggle="button" 
+	title="Send keyboard input to the application">Keyboard</button>
+	
+	</span>
+	<span id="appFps">Average FPS: <span>0</span></span>
+</span>
+</form>
+
+</div>
+</div>
+
+<!--Control tab bar-->
+
+<div class="tabbable tabs-left">
+<ul id="tabBar" class="nav nav-tabs" style="">
+<!--Monitoring-->
+<li class="active" id="tabProfiling"><a data-toggle="tab">Monitor</a></li>
+	<div id="tabProfilingTabs" class="tabButtonGroup" data-toggle="buttons-radio">
+	<li><button id="tabProfilingTabGraph" class="btn tabButton">Time graph</button></li>
+	<li><button id="tabMonitorTabMemory" class="btn tabButton">Memory</button></li>
+	<li><button id="tabProfilingTabThreads" class="btn tabButton">Tasks</button></li>
+	<li><button id="tabProfilingTabTimers" class="btn tabButton">Timers</button></li>
+	</div>
+<!--Data
+<li id="tabData"><a data-toggle="tab">Assets</a></li>
+	<div id="tabDataTabs" class="tabButtonGroup" data-toggle="buttons-radio">
+	<li><button id="tabDataTabShaders" class="btn tabButton">Shaders</button></li>
+	</div>-->
+<!--Options tab-->
+<li id="tabOptions"><a data-toggle="tab">Options</a></li>
+<!--Options tab-->
+<li id="tabHelp"><a data-toggle="tab">Help</a></li>
+</ul>
+
+<div class="tab-content">
+
+    
+<!--Frame dt-->
+<div id="profilingTimeGraphView" class="viewDiv dontShowAtStart">
+<h4 class="text-left" >Frame delta time</h4>
+<div>
+<canvas class="viewCanvas"></canvas>
+</div>
+</div>
+
+<!--Thread profiler-->
+<div id="profilingThreadView" class="dontShowAtStart">
+<h4 class="text-left">Task and thread profiler</h4>
+<div class="borderedWidget">
+<canvas class="viewCanvas"></canvas>
+</div>
+</div>
+
+<!--Memory usage-->
+<div id="memoryUsageGraphView" class="viewDiv dontShowAtStart">
+<h4 class="text-left" >Memory usage</h4>
+<div>
+<canvas class="viewCanvas"></canvas>
+</div>
+</div>
+
+<!--Timer profiler-->
+<div id="profilingResultsView" class="dontShowAtStart">
+<h4 class="text-left">Timer profiling results</h4>
+<table class="table table-bordered table-condensed">
+<thead>
+<tr><th>Name</th><th>Samples</th><th>Mean</th><th>Median</th>
+<th>Standart Deviation</th><th>Total</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<!-- -->
+<div id="shadersView" class="dontShowAtStart">
+<div class="inlineHeader">
+	<h4>Shaders</h4>
+    <div class="btn-group">
+    <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+    Shaders
+    <span class="caret"></span>
+    </a>
+    <ul class="dropdown-menu">
+    <li><a>Shader 0</a></li>
+    <li><a>Shader 1</a></li>
+    </ul>
+    </div>
+</div>    
+	<div class="codeEditor">
+	<textarea></textarea>
+	</div>
+</div>
+
+<!--Options-->
+<div id="optionsView" class="dontShowAtStart">
+<form>
+	<h4>Connection</h4>
+	<label class="checkbox">
+	<input id="optionsAutoconnect" type="checkbox"/>
+	Autoconnect at startup.
+	</label>
+	<label class="checkbox">
+	<input id="optionsProbe" type="checkbox"/>
+	Periodically probe for a running application.
+	</label>
+
+	
+	<!--<h4><br>Extensions</h4>   
+    <div class="row-fluid">
+    <ul id="optionsExtensions" class="span4 unstyled">
+    <li>View: a simple something <a><i class="icon-remove" title="remove"></i></a></li>
+    </ul>
+    </div>
+	<a>Add a new extension</a>-->
+	
+	
+	<!--
+	<h4>Keyboard shortcuts</h4>
+	<dl id="optionsViewShortcuts" class="dl-horizontal">
+	</dl>
+	-->
+	
+	<h4><br>UI</h4>
+	<button id="optionsUiReset" class="btn" type="button">
+	Reset ui options</button>
+	
+	<!--<h4><br>Data</h4>
+	<span>Store data for last the last</span>
+	<input type="text"><span>frames.</span><br>
+	<button class="btn" type="button">Export data(TODO)</button>-->
+	
+
+</form>
+</div>
+
+<!--help-->
+<div id="helpView" class="dontShowAtStart">
+	<h4>Introduction</h4>
+	<p>A set browser based tools for game development.</p>
+	
+	<h4>Tool usage</h4>
+	<ul>
+		<li><b>Play/Pause button:</b> activates/deactivates the application.</li>
+		<li><b>Power button:</b> shuts down the application.</li>
+		<li><b>Keyboard button:</b> when it is enabled, 
+		the browser sends the keyboard input to the application. </li>
+		<li><b>Console:</b> click on the console to enabled javascript input.
+		To send a message to the application type <code>
+		application.send('message')</code> or <code>
+		application.send('message',{value:'Hello world!'})</code></li>
+		<li><b>Task and thread profiler:</b> hold the left mouse button
+		down to pan around, and hold the right mouse button to zoom in and out.</li>
+	</ul>
+	
+	<h4>More</h4>
+	<p>See <a href="https://github.com/hyp/gamedevwebtools/readme.md">README.md</a> for more information.</p>
+
+</div>
+
+</div>
+</div>
+
+<!--Logging console-->
+<div class="fixedBottomBar">
+<div id="logoutputViewSizer" class="separatorBar separatorBar-horizontal">
+</div>
+<div id="logoutputView" class="well well-small viewLogOutput">
+<div></div>
+<input type="text" class="input-block-level"/>
+</div>
+
+</div>
+
+<!--Load the application-->
+<script src="js/main.js"></script>
+<script src="js/ui/components.js"></script>
+<script src="js/ui/graphView.js"></script>
+<script src="js/ui/taskThreadView.js"></script>
+<script src="js/ui/ui.js"></script>
+
+</body>
+</html>
