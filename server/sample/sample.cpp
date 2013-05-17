@@ -72,24 +72,35 @@ int main() {
 			prevMemUsage = 0;
 		}
 		
-		void onApplicationQuitMessage() override {
+		void onApplicationQuit() {
 			printf("Exiting the application\n");
 			done = true;
 		}
-		void onApplicationActivateMessage() override {
+		void onApplicationActivate() {
 			active = !active;
 			printf("Activating the application\n");
 		}
-		void onMessage(const Message &message) override {
-			printf("Got message '%s'\n",message.type());
-			if(!strcmp(message.type(),"print") && message.fieldCount() > 0) {
+		void onNewClient() override {
+			printf("A new client has connected\n");
+		}
+		
+		static void print(const Message &message) {
+			if(message.fieldCount() > 0)
 				printf("%s\n",message.fields()[0].asString());
-			} else if(!strcmp(message.type(),"allocate") && message.fieldCount() > 0) {
+		}
+		static void rogerThat() {
+			printf("Roger that!\n");
+		}
+		void allocate(const Message &message) {
+			if(message.fieldCount() > 0) {
 				ints.length(message.fields()[0].asInteger());
 			}
 		}
-		void onNewClient() override {
-			printf("A new client has connected\n");
+		void keydown(const Message &message) {
+			printf("key down\n");
+		}
+		void keyup() const {
+			printf("key up\n");
 		}
 	};
 	Service::ApplicationInformation info;
@@ -98,6 +109,14 @@ int main() {
 	netOpts.blockUntilFirstClient = true;
 	SampleService service(ints);
 	service.init(info,netOpts);
+	
+	service.connect("application.service.quit",service,&SampleService::onApplicationQuit);
+	service.connect("application.service.activate",service,&SampleService::onApplicationActivate);
+	service.connect("print",&SampleService::print);
+	service.connect("rogerThat",&SampleService::rogerThat);
+	service.connect("allocate",service,&SampleService::allocate);
+	service.connect("input.keydown",service,&SampleService::keydown);
+	service.connect("input.keyup",service,&SampleService::keyup);
 	
 	auto firstT = now();
 	auto lastT = firstT;	

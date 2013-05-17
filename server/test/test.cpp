@@ -1,4 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string>
+#include <map>
+
 #include "../gamedevwebtools.cpp"
 
 /**
@@ -114,6 +119,54 @@ int main() {
 			"dGhlIG1pbmQsIHRoYXQgYnkgYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWdodCBpbiB0aGUgY29udGlu"
 			"dWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZGdlLCBleGNlZWRzIHRo"
 			"ZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm5hbCBwbGVhc3VyZS4=") == 0); 
+	}
+	
+	// Hash table
+	{
+		using namespace gamedevwebtools::core;
+		// Don't initialize, use only onMalloc and onFree, don't delete
+		// so the destructor won't be called.
+		auto alloc = new gamedevwebtools::Service;
+		
+		HashTable table(alloc);
+		assert(table.find("Hello") == HashTable::kInvalidValue);
+		table.insert("Hello",42);
+		assert(table.find("Hello") == 42);
+		table.insert("Volbeat",69);
+		assert(table.find("Volbeat") == 69);
+		assert(table.find("Hello") == 42);
+		assert(table.find("Vlbeat") == HashTable::kInvalidValue);
+		table.remove("Hello");
+		assert(table.find("Volbeat") == 69);
+		assert(table.find("Hello") == HashTable::kInvalidValue);
+		table.remove("Volbeat");
+		assert(table.find("Volbeat") == HashTable::kInvalidValue);
+		assert(table.find("Hello") == HashTable::kInvalidValue);	
+		table.insert("Hello",0);
+		assert(table.find("Hello") == 0);
+		table.remove("Hello");	
+		
+		const char *strings[] = {
+			"abc","man","page","string","dress","code","hash",
+			"foo","sunday","apple","community","dresscode","appletree",
+			"generation","numbers","chang","spirit"
+		};
+		auto stringCount = sizeof(strings)/sizeof(strings[0]);
+		
+		std::map<std::string,uint32_t> reference;
+		srand(time(nullptr));
+		for(size_t i = 0;i<stringCount;++i) {
+			auto str = strings[i%stringCount];
+			auto number = uint32_t(rand());
+			if(number == HashTable::kInvalidValue) number = 0;
+			reference[str] = number;
+			table.insert(str,number);
+		}
+		
+		for(size_t i = 0;i<stringCount;++i) {
+			auto str = strings[i%stringCount];
+			assert(reference[str] == table.find(str));
+		}
 	}
 	printf("Done\n");
 	return 0;

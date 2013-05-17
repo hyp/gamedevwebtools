@@ -1543,6 +1543,287 @@ void Server::ws() {
 
 #endif // GAMEDEVWEBTOOLS_NO_WEBSOCKETS
 
+typedef uint32_t Fnv32_t;
+
+/*
+ * hash_32 - 32 bit Fowler/Noll/Vo FNV-1a hash code
+ *
+ * @(#) $Revision: 5.1 $
+ * @(#) $Id: hash_32a.c,v 5.1 2009/06/30 09:13:32 chongo Exp $
+ * @(#) $Source: /usr/local/src/cmd/fnv/RCS/hash_32a.c,v $
+ *
+ ***
+ *
+ * Fowler/Noll/Vo hash
+ *
+ * The basis of this hash algorithm was taken from an idea sent
+ * as reviewer comments to the IEEE POSIX P1003.2 committee by:
+ *
+ *      Phong Vo (http://www.research.att.com/info/kpv/)
+ *      Glenn Fowler (http://www.research.att.com/~gsf/)
+ *
+ * In a subsequent ballot round:
+ *
+ *      Landon Curt Noll (http://www.isthe.com/chongo/)
+ *
+ * improved on their algorithm.  Some people tried this hash
+ * and found that it worked rather well.  In an EMail message
+ * to Landon, they named it the ``Fowler/Noll/Vo'' or FNV hash.
+ *
+ * FNV hashes are designed to be fast while maintaining a low
+ * collision rate. The FNV speed allows one to quickly hash lots
+ * of data while maintaining a reasonable collision rate.  See:
+ *
+ *      http://www.isthe.com/chongo/tech/comp/fnv/index.html
+ *
+ * for more details as well as other forms of the FNV hash.
+ ***
+ *
+ * To use the recommended 32 bit FNV-1a hash, pass FNV1_32A_INIT as the
+ * Fnv32_t hashval argument to fnv_32a_buf() or fnv_32a_str().
+ *
+ ***
+ *
+ * Please do not copyright this code.  This code is in the public domain.
+ *
+ * LANDON CURT NOLL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO
+ * EVENT SHALL LANDON CURT NOLL BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+ * USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+ * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ *
+ * By:
+ *	chongo <Landon Curt Noll> /\oo/\
+ *      http://www.isthe.com/chongo/
+ *
+ * Share and Enjoy!	:-)
+ */
+
+/*
+ * 32 bit FNV-1 and FNV-1a non-zero initial basis
+ *
+ * The FNV-1 initial basis is the FNV-0 hash of the following 32 octets:
+ *
+ *              chongo <Landon Curt Noll> /\../\
+ *
+ * NOTE: The \'s above are not back-slashing escape characters.
+ * They are literal ASCII  backslash 0x5c characters.
+ *
+ * NOTE: The FNV-1a initial basis is the same value as FNV-1 by definition.
+ */
+#define FNV1_32_INIT ((Fnv32_t)0x811c9dc5)
+#define FNV1_32A_INIT FNV1_32_INIT
+
+/*
+ * 32 bit magic FNV-1a prime
+ */
+#define FNV_32_PRIME ((Fnv32_t)0x01000193)
+
+/*
+ * fnv_32a_str - perform a 32 bit Fowler/Noll/Vo FNV-1a hash on a string
+ *
+ * input:
+ *	str	- string to hash
+ *	hval	- previous hash value or 0 if first call
+ *
+ * returns:
+ *	32 bit hash as a static hash type
+ *
+ * NOTE: To use the recommended 32 bit FNV-1a hash, use FNV1_32A_INIT as the
+ *  	 hval arg on the first call to either fnv_32a_buf() or fnv_32a_str().
+ */
+Fnv32_t
+fnv_32a_str(const char *str, Fnv32_t hval)
+{
+    const unsigned char *s = (const unsigned char *)str;	/* unsigned string */
+
+    /*
+     * FNV-1a hash each octet in the buffer
+     */
+    while (*s) {
+
+	/* xor the bottom with the current octet */
+	hval ^= (Fnv32_t)*s++;
+
+	/* multiply by the 32 bit FNV magic prime mod 2^32 */
+	hval *= FNV_32_PRIME;
+    }
+
+    /* return our new hash value */
+    return hval;
+}
+
+/*----------------------------------------------------------------------
+ * A Robin hood hashing table
+ */
+namespace gamedevwebtools {
+namespace core {
+
+class HashTable {
+public:
+enum {
+	kInitialCapacity = 256, //Should be a power of two
+	kLoadFactorPercentage = 90,
+	kInvalidIndex = 0xFFFFFFFF,
+};
+enum {
+	kInvalidValue = 0xFFFFFFFF
+};
+private:
+ 
+struct Element {
+	uint32_t hash;
+	uint32_t value;
+	const char *key;
+};
+
+Element *buffer;
+uint32_t capacity;
+uint32_t resizeThreshold;
+uint32_t mask;
+uint32_t size;
+Service *allocator;
+
+static uint32_t hashKey(const char *key) {
+	auto h = fnv_32a_str(key,FNV1_32A_INIT);
+	// MSB is used to indicate a deleted element
+	h &= 0x7fffffff;
+	// Dont return a zero hash.
+	h |= h == 0? 1 : 0;
+	return h;
+}
+
+static bool isDeleted(uint32_t hash) {
+	// MSB set indicates that this hash is a "tombstone"
+	return (hash >> 31) != 0;	
+}
+
+inline uint32_t desiredPosition(uint32_t hash) const {
+	return hash & mask;
+}
+
+uint32_t probeDistance(uint32_t hash, uint32_t slotIndex) const {
+	return (slotIndex + capacity - desiredPosition(hash)) & mask;
+}
+ 
+// alloc buffer according to currently set capacity
+void alloc() {	
+	buffer = (Element*)(allocator->onMalloc(capacity*sizeof(Element)));
+	for(uint32_t i = 0; i < capacity; ++i) 
+		buffer[i].hash = 0;
+	resizeThreshold = (capacity * kLoadFactorPercentage) / 100;
+	mask = capacity - 1;
+}
+
+void grow() {
+	auto old = buffer;
+	auto oldCapacity = capacity;
+	capacity*=2;
+	alloc();
+	// Rehash the old entries.
+	for(uint32_t i = 0; i < oldCapacity; ++i) {
+		auto hash = old[i].hash;
+		if(hash != 0 && !isDeleted(hash))
+			insertHelper(hash,old[i].key,old[i].value);
+	}
+	allocator->onFree(old);
+}
+
+void insertHelper(uint32_t hash, const char *key, uint32_t value) {
+	auto pos = desiredPosition(hash);
+	uint32_t dist = 0;
+	for(;;) {
+		auto elemHash = buffer[pos].hash;
+		if(elemHash == 0) {
+			buffer[pos].hash = hash;
+			buffer[pos].value = value;
+			buffer[pos].key = key;
+			return;
+		}
+
+		// If the existing elem has probed less than us, then swap places with existing
+		// elem, and keep going to find another slot for that elem.
+		int existingElemProbeDistance = probeDistance(elemHash, pos);
+		if (existingElemProbeDistance < dist) {
+			if(isDeleted(elemHash)) {
+				buffer[pos].hash = hash;
+				buffer[pos].value = value;
+				buffer[pos].key = key;
+				return;				
+			}
+			//Swap
+			buffer[pos].hash = hash; hash = elemHash;
+			elemHash = buffer[pos].value;
+			buffer[pos].value = value; value = elemHash;
+			dist = existingElemProbeDistance;
+			auto oldKey = buffer[pos].key;
+			buffer[pos].key = key; key = oldKey;
+		}
+
+		pos = (pos+1) & mask;
+		++dist;
+	}
+}
+
+uint32_t lookupIndex(const char *key) const {
+	const uint32_t hash = hashKey(key);
+	auto pos = desiredPosition(hash);
+	uint32_t dist = 0;
+	for(;;) {
+		if(buffer[pos].hash == 0) 
+			return kInvalidIndex;
+		else if(dist > probeDistance(buffer[pos].hash, pos))
+			return kInvalidIndex;
+		else if(buffer[pos].hash == hash && !strcmp(buffer[pos].key,key))
+			return pos;
+			
+		pos = (pos+1) & mask;
+		++dist;
+	}
+	return kInvalidIndex;
+}
+ 
+ 
+public:
+
+HashTable(Service *allocator)
+: buffer(nullptr), size(0), capacity(kInitialCapacity) {
+	this->allocator = allocator;
+	alloc();
+}
+
+~HashTable() {
+	if(buffer) allocator->onFree(buffer);
+}
+
+void insert(const char *key, uint32_t value) {
+	size+=1;
+	if(size >= resizeThreshold) grow();
+	insertHelper(hashKey(key),key,value);
+}
+
+const uint32_t find(const char *key) {
+	auto idx = lookupIndex(key);
+	return idx != kInvalidIndex? buffer[idx].value : kInvalidValue;
+}
+
+void remove(const char *key) {
+	auto idx = lookupIndex(key);
+	if(idx == kInvalidIndex) return;
+	buffer[idx].hash |= 0x80000000; // Mark as deleted.
+	size-=1;
+}
+
+size_t memoryUsage() const {
+	return capacity*sizeof(Element);
+}
+
+};
+
+} } // gamedevwebtools::core
+
 /*----------------------------------------------------------------------
  * Actual tooling service. 
  */
@@ -1607,6 +1888,11 @@ void Service::init(
 		new(threadMessageBackBuffers + i) 
 			core::memory::Arena(this,initialSize);
 	}
+	
+	messageTypeMapping =
+		new(onMalloc(sizeof(core::HashTable))) core::HashTable(this);
+	messageHandlers =
+		new(onMalloc(sizeof(core::memory::Arena))) core::memory::Arena(this,4096);
 	
 	assert(netOptions.maxConnectedClients > 0);
 	
@@ -1747,6 +2033,8 @@ size_t Service::computeMemoryUsage() {
 		size += threadMessageBuffers[i].capacity();
 		size += threadMessageBackBuffers[i].capacity();
 	}
+	size += messageTypeMapping->memoryUsage();
+	size += messageHandlers->capacity();
 	for(size_t i = 0;i < activeClientCount;++i) 
 		size += wsclients[i].memoryUsage();
 	return size;
@@ -2160,6 +2448,8 @@ static void parseJSON(Service *self, ParseResult &result,
 	result.type = type;
 }
 
+typedef void (*BindingDispatchFunction)(const void *,const Message &);
+
 size_t Service::parse(char *message,size_t size) {
 	Message::Field fields[ParseResult::kMaxFields];
 	ParseResult result;
@@ -2169,24 +2459,13 @@ size_t Service::parse(char *message,size_t size) {
 	parseJSON(this, result, message, size);
 	if(!result.type) return result.binaryDataSize;
 		
-	bool msg = true;
-	if(result.type[0] == 'a' && result.type[1] == 'p'){
-		if(!strcmp(result.type,"application.service.quit")) {
-			onApplicationQuitMessage();
-			msg = false;
-		}
-		else if(!strcmp(result.type,"application.service.activate")) {
-			onApplicationActivateMessage();
-			msg = false;
-		}
-		else if(!strcmp(result.type,"application.service.step")) {
-			onApplicationFrameStepMessage();
-			msg = false;
-		}
-	}
-	if(msg) {
-		Message resultMsg(result.type,result.fields,result.count);
-		onMessage(resultMsg);
+	Message resultMsg(result.type,result.fields,result.count);
+	
+	auto handler = messageTypeMapping->find(result.type);
+	if(handler != core::HashTable::kInvalidValue) {
+		auto base = (uint8_t*)messageHandlers->base();
+		(*((BindingDispatchFunction*)(base+handler))) (
+			base + handler + sizeof(BindingDispatchFunction),resultMsg);
 	}
 	return result.binaryDataSize;
 }
@@ -2205,19 +2484,116 @@ void Service::recieve(uint8_t *data,size_t size) {
 	}
 }
 
+struct FunctionCallback {
+	void (*function)();
+};
+struct FunctionDataCallback {
+	void (*function)(void *);
+	void *data;
+};
+struct FunctionMsgCallback {
+	void (*function)(const Message &);
+};
+struct FunctionDataMsgCallback {
+	void (*function)(void *, const Message &);
+	void *data;
+};
+
+static void dispatchFunction(const void *data,const Message &msg) {
+	((const FunctionCallback*)data)->function ();
+}
+static void dispatchFunctionData(const void *data,const Message &msg) {
+	auto self = ((const FunctionDataCallback*)data);
+	self->function (self->data);
+}
+static void dispatchFunctionMsg(const void *data,const Message &msg) {
+	((const FunctionMsgCallback*)data)->function (msg);
+}
+static void dispatchFunctionDataMsg(const void *data,const Message &msg) {
+	auto self = ((const FunctionDataMsgCallback*)data);
+	self->function (self->data, msg);
+}
+
+static uint32_t handlerOffset(const core::memory::Arena *arena) {
+	auto offset = arena->size();
+	assert(offset < size_t(core::HashTable::kInvalidValue));
+	return uint32_t(offset);
+}
+
+void Service::safeInsert(core::HashTable *hash,const char *key){
+	auto value = handlerOffset(messageHandlers);
+	if(hash->find(key) == core::HashTable::kInvalidValue) {
+		hash->insert(key, value);
+		return;
+	}
+	core::Buffer buffer;
+	buffer.put("Can't connect to '");
+	buffer.put(key);
+	buffer.put("' - this message type is already taken.");
+	onError(buffer.cString());
+}
+
+void Service::connect(const char *messageType, 
+	void (*function)()) 
+{
+	safeInsert(messageTypeMapping,messageType);
+	auto f = (BindingDispatchFunction*)
+		messageHandlers->allocate(sizeof(BindingDispatchFunction));
+	auto args = (FunctionCallback*)
+		messageHandlers->allocate(sizeof(FunctionCallback));
+	*f = &dispatchFunction;
+	args->function = function;
+}
+void Service::connect(const char *messageType, 
+	void (*function)(void *userData), void *data) 
+{
+	safeInsert(messageTypeMapping,messageType);
+	auto f = (BindingDispatchFunction*)
+		messageHandlers->allocate(sizeof(BindingDispatchFunction));
+	auto args = (FunctionDataCallback*)
+		messageHandlers->allocate(sizeof(FunctionDataCallback));
+	*f = &dispatchFunctionData;
+	args->function = function;
+	args->data = data;
+}
+void Service::connect(const char *messageType, 
+	void (*function)(const Message &message))
+{
+	safeInsert(messageTypeMapping,messageType);
+	auto f = (BindingDispatchFunction*)
+		messageHandlers->allocate(sizeof(BindingDispatchFunction));
+	auto args = (FunctionMsgCallback*)
+		messageHandlers->allocate(sizeof(FunctionMsgCallback));
+	*f = &dispatchFunctionMsg;
+	args->function = function;	
+}
+void Service::connect(const char *messageType, 
+	void (*function)(void *userData, const Message &message), void *data)
+{
+	safeInsert(messageTypeMapping,messageType);
+	auto f = (BindingDispatchFunction*)
+		messageHandlers->allocate(sizeof(BindingDispatchFunction));
+	auto args = (FunctionDataMsgCallback*)
+		messageHandlers->allocate(sizeof(FunctionDataMsgCallback));
+	*f = &dispatchFunctionDataMsg;
+	args->function = function;
+	args->data = data;	
+}
+void Service::methodConnect(void (*dispatch)(const void *,const Message &),
+	const void *callback,size_t callbackSize) 
+{
+	auto f = (BindingDispatchFunction*)
+		messageHandlers->allocate(sizeof(BindingDispatchFunction));
+	auto args = messageHandlers->allocate(callbackSize);
+	*f = dispatch;
+	memcpy(args,callback,callbackSize);
+}
+
 /* Default handlers */
 void Service::onError(const char *errorString) {
 	printf("gamedevwebtools::onError - %s\n",errorString);
 }
 void Service::onNewClient() {
-}
-void Service::onMessage(const Message &message) {
-}
-void Service::onApplicationQuitMessage() {
-}
-void Service::onApplicationActivateMessage() {
-}
-void Service::onApplicationFrameStepMessage() {
 }
 
 } // gamedevwebtools

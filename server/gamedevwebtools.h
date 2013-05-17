@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <utility>
+#include <new>
 
 #ifndef GAMEDEVWEBTOOLS_CONSTEXPR
 	#ifdef _MSC_VER
@@ -48,6 +49,9 @@ namespace logging {
 };
 	
 namespace core {
+	
+class HashTable;
+
 namespace memory {
 
 class Arena;
@@ -175,6 +179,11 @@ inline const char *Message::type() const { return name; }
 inline size_t Message::fieldCount() const { return length; }
 /** Returns the message's fields */
 inline const Message::Field *Message::fields() const { return fieldArray; }
+
+class MessageHandler {
+public:
+	virtual void handle() = 0;
+};
 
 /**
  * This service is responsible for sending messages and recieving messages
@@ -319,20 +328,60 @@ public:
 	void send(const Message &message,const void *data,const size_t
 		dataSize);
 	
+
 	/**
-	 * Recieve a message.
+	 * The set of connect methods enable the user to recieve messages
+	 * using custom handlers.
+	 * 
+	 * The application can only connect one handler for each distinct message type.
 	 * NB:
 	 * Memory considerations:
 	 *   All the strings and the field array owned by the message are
-	 *   valid only inside onMessage. You have to copy the data if you
-	 *   want to preserve it.
-	 * Timing and Thread Safety: Called only from inside update.
+	 *   valid only inside the provided function/method.
+	 *   You have to copy the data if you want to preserve it.
+	 * 
+	 * Timing and Thread Safety:
+	 *   The connect methods AREN'T thread safe and MUST be called only
+	 *   from one thread.
+	 * 
+	 *   The functions/methods callbacks are called only from inside update.
+	 * 
+	 * Efficiency considerations:
+	 *   When a message is received its type is hashed.
+	 *   Then it is dispatched. (hidden virtual method dispatch).
 	 */
-	virtual void onMessage(const Message &message);
+	/** 
+	 * The following four methods provide a binding between a message type
+	 * and functions. */
+	void connect(const char *messageType, 
+		void (*function)());
+	void connect(const char *messageType, 
+		void (*function)(void *userData), void *data);
+	void connect(const char *messageType, 
+		void (*function)(const Message &message));
+	void connect(const char *messageType, 
+		void (*function)(void *userData, const Message &message), void *data);
+		
+	/** 
+	 * The next four methods provide a binding between a message type
+	 * and a method of an object. 
+	 * The address of the object must remain constant.
+	 */
+	template<typename T>
+	void connect(const char *messageType, 
+		T &object, void (T::* method)());
+		
+	template<typename T>
+	void connect(const char *messageType, 
+		T &object, void (T::* method)(const Message &message));
+		
+	template<typename T>
+	void connect(const char *messageType, 
+		const T &object, void (T::* method)() const);
 	
-	virtual void onApplicationQuitMessage();
-	virtual void onApplicationActivateMessage();
-	virtual void onApplicationFrameStepMessage();
+	template<typename T>
+	void connect(const char *messageType, 
+		const T &object, void (T::* method)(const Message &message) const);
 	
 	/**
 	 * A callback for when a new client connects.
@@ -355,10 +404,16 @@ private:
 	bool checkForNewClient();
 	void removeClient(size_t i);
 	
+	void safeInsert(core::HashTable *hash,const char *key);
+	void methodConnect(void (*dispatch)(const void *,const Message &),
+		const void *callback,size_t callbackSize);
+	
 	bool active_;
 	core::memory::Arena *threadMessageBuffers;
 	core::memory::Arena *threadMessageBackBuffers;
 	size_t threadCount;
+	core::HashTable *messageTypeMapping;
+	core::memory::Arena *messageHandlers;
 	
 	network::Server *server;
 	size_t clientCount;
@@ -373,6 +428,82 @@ private:
 
 inline size_t Service::connectedClients() const { 
 	return activeClientCount; 
+}
+
+template<typename T>
+void Service::connect(const char *messageType, 
+	T &object, void (T::* method)(const Message &message))
+{
+	safeInsert(messageTypeMapping,messageType);
+	struct Wrapper {
+		void (T::* method)(const Message &);
+		T &object;
+		
+		GAMEDEVWEBTOOLS_CONSTEXPR Wrapper(T &obj) : object(obj) {}
+		static void dispatch(const void *data,const Message &msg){
+			auto self = (const Wrapper*)data;
+			(self->object.*(self->method))(msg);
+		}
+	};
+	Wrapper wrapper(object);wrapper.method = method;
+	methodConnect(&Wrapper::dispatch,&wrapper,sizeof(Wrapper));
+}
+
+template<typename T>
+void Service::connect(const char *messageType, 
+	T &object, void (T::* method)())
+{
+	safeInsert(messageTypeMapping,messageType);
+	struct Wrapper {
+		void (T::* method)();
+		T &object;
+		
+		GAMEDEVWEBTOOLS_CONSTEXPR Wrapper(T &obj) : object(obj) {}
+		static void dispatch(const void *data,const Message &msg){
+			auto self = (const Wrapper*)data;
+			(self->object.*(self->method))();
+		}
+	};
+	Wrapper wrapper(object);wrapper.method = method;
+	methodConnect(&Wrapper::dispatch,&wrapper,sizeof(Wrapper));
+}
+
+template<typename T>
+void Service::connect(const char *messageType, 
+	const T &object, void (T::* method)(const Message &message) const)
+{
+	safeInsert(messageTypeMapping,messageType);
+	struct Wrapper {
+		void (T::* method)(const Message &) const;
+		const T &object;
+		
+		GAMEDEVWEBTOOLS_CONSTEXPR Wrapper(const T &obj) : object(obj) {}
+		static void dispatch(const void *data,const Message &msg){
+			auto self = (const Wrapper*)data;
+			(self->object.*(self->method))(msg);
+		}
+	};
+	Wrapper wrapper(object);wrapper.method = method;
+	methodConnect(&Wrapper::dispatch,&wrapper,sizeof(Wrapper));
+}
+
+template<typename T>
+void Service::connect(const char *messageType, 
+	const T &object, void (T::* method)() const)
+{
+	safeInsert(messageTypeMapping,messageType);
+	struct Wrapper {
+		void (T::* method)() const;
+		const T &object;
+		
+		GAMEDEVWEBTOOLS_CONSTEXPR Wrapper(const T &obj) : object(obj) {}
+		static void dispatch(const void *data,const Message &msg){
+			auto self = (const Wrapper*)data;
+			(self->object.*(self->method))();
+		}
+	};
+	Wrapper wrapper(object);wrapper.method = method;
+	methodConnect(&Wrapper::dispatch,&wrapper,sizeof(Wrapper));
 }
 
 } // gamedevwebtools.
