@@ -20,7 +20,7 @@ Open app/index.html in your browser to access the browser based client.
 
 Alternatively you can visit [http://gamedevwebtools.github.io](http://gamedevwebtools.github.io).
 
-To provide a sample data generating server for the browser client, compile and run the  application located in the server/sample directory (VS project is included in vsproject folder, and CMakeLists.txt is provided for linux or a custom vs projects).
+To provide a sample data generating server for the browser client, compile and run the application located in the folder server/sample (Visual Studio project is included in vsproject folder, and CMakeLists.txt is provided for linux and/or custom builds).
 
 ### Tools
 
@@ -38,7 +38,7 @@ To provide a sample data generating server for the browser client, compile and r
 
 ### Implementation/protocol details
 
-Gamedev web tools uses Websockets to send binary messages with JSON headers between the application and the web clients. The communication occurs in this manner:
+Gamedev web tools uses Websockets to send binary messages with JSON headers between the application and the web clients. The communication occurs in the following manner:
 
 **1)** A message header is encoded as a JSON object, and a propery 'type' is added to it to represent the type of this message. If a message intends to carry any additional binary data (some game assets for example), then a property 'dataSize' is added to the object to represent the size of the binary data included with this message. The message header object can only have number, boolean and string properties, it doesn't allow any embedded arrays (Will be changed in the future to allow sending values of type float4 and the like) or objects.
 
@@ -54,7 +54,7 @@ A list of currently used message types and expected properties can be seen in th
 
 ### Integration with your game/game engine
 
-You'll need to integrate gamedevwebtools server into your application/engine to take advantage of it's functionality.
+You'll need to integrate gamedevwebtools server into your application/engine to take advantage of its functionality.
 
 A server written in C++ is provided with gamedevwebtools. It currenly works on Windows and Linux, but it should theoretically (as long as the sockets work) work on Android and Mac/iOS platforms.
 
