@@ -50,40 +50,9 @@ namespace logging {
 namespace core {
 namespace memory {
 
-/**
- * Allocator is an interface providing
- * dynamic memory management for the arena.
- * 
- * The allocator must be thread safe.
- * The allocated memory must be aligned with at least pointer alignment.
- */
-class Allocator {
-public:
-	virtual void *allocate(size_t size) = 0;
-	virtual void deallocate(void *p) = 0;
-};
-
 class Arena;
 
-} // memory
-
-/**
- * ThreadIdProvider is an interface used to make sending messages
- * thread safe.
- * The id is a number, unique to each thread,
- * ranging from 0 to maxThreadId.
- * MaxThreadId must not change while the application is running.
- * 
- * The default implementation assumes that the application only sends
- * messages from one thread.
- */
-class ThreadIdProvider {
-public:
-	virtual size_t currentThreadId() const;
-	virtual size_t maxThreadId() const;
-};
-
-} // core
+} }// core::memory
 
 namespace network {
 	
@@ -178,7 +147,6 @@ public:
 		friend class Service;
 	};
 	
-	
 	Message(const char *type,const Field *fields,size_t count);
 	Message(const char *type);
 	Message(const char *type,const Field &a);
@@ -211,6 +179,9 @@ inline const Message::Field *Message::fields() const { return fieldArray; }
 /**
  * This service is responsible for sending messages and recieving messages
  * and data to and from the web clients.
+ * 
+ * Once an instance of the service was created, it is assumed that the address
+ * of said instance will remain constant while the application is running.
  */
 class Service {
 public:
@@ -259,28 +230,56 @@ public:
 		GAMEDEVWEBTOOLS_CONSTEXPR ApplicationInformation() :
 			name("Unnamed application") {}
 	};
-
+	
+	/** Constructor. NB: The service isn't initialized until init is called! */
 	Service();
+	/** Destructor. All memory and network resources used by the service are released */
 	virtual ~Service();
-
 	
 	/**
 	 * Initializes the service - starts the networking server, allocates
 	 * buffers, etc. Should be called once straight after creation.
 	 * 
+	 * threadCount is the number of threads used by the application 
+	 * which can send messages. It is assumed that it will never change
+	 * while the application is running. It must be at least be 1. The
+	 * default value is 1 meaning that the application intends to send
+	 * messages only from one thread.
+	 *
 	 * Why call init and not just do it all in the constructor?
 	 * - init may need to call onError which is a virtual function.
 	 * - classes deriving from this class will need to construct the
-	 *   Allocator, options and ThreadIdProvider before calling init,
+	 *   options before calling init,
 	 *   and it would be awkard to construct them before calling the
 	 *   constructor.
 	 */
 	void init(
-		core::memory::Allocator *memoryProvider,
 		const ApplicationInformation &appInfo = ApplicationInformation(),
 		const NetworkOptions &netOptions = NetworkOptions(),
-		core::ThreadIdProvider *multithreadingUtils = nullptr);
-		
+		size_t threadCount = 1);
+	
+	/**
+	 * This method enables the service to send messages from multiple threads.
+	 * 
+	 * currentThreadId is a number, unique to each thread, 
+	 * ranging from 0 to threadCount - 1 inclusive.
+	 * 
+	 * The default implementation assumes that the application only sends
+	 * messages from one thread and that the currentThreadId is always 0.
+	 */
+	virtual size_t currentThreadId() const;
+	
+	/**
+	* The service needs dynamic memory allocation to operate, 
+	* and you can override onMalloc and onFree to provide you own 
+	* memory management functions instead of the default malloc and free.
+	* 
+	* NB: ThreadSafety: These functions must be thread safe.
+	* The allocated memory must be aligned with at least pointer alignment.
+	*/
+	virtual void *onMalloc(size_t size);
+	virtual void onFree(void *ptr);
+	
 	/** Returns the number of clients connected ATM */
 	inline size_t connectedClients() const;
 	
@@ -295,7 +294,7 @@ public:
 	 *   no other threads can send messages and call update
 	 *   while this call is taking place.
 	 * 
-	 * Efficiencyn considerations:
+	 * Efficiency considerations:
 	 *   It's fast as it doesn't copy any buffers, 
 	 *   since double buffering is used for the thread message buffers. 
 	 *   May send some messages, but not every frame.
@@ -312,7 +311,7 @@ public:
 	/**
 	 * Sends a message.
 	 * NB: Thread Safety: Can be called from any thread.
-	 * Efficency considerations: 
+	 * Efficiency considerations: 
 	 *   False sharing(cache line sharing)
 	 *   may occur when called from different threads.
 	 */
@@ -346,7 +345,6 @@ public:
 	 * NB: Thread Safety: must be thread safe.
 	 */
 	virtual void onError(const char *errorString);
-	
 private:
 	void send(const uint8_t *data,size_t size,size_t binaryDataSize,
 		const void *binaryData);
@@ -357,12 +355,9 @@ private:
 	bool checkForNewClient();
 	void removeClient(size_t i);
 	
-	core::ThreadIdProvider  *threading;
+	bool active_;
 	core::memory::Arena *threadMessageBuffers;
 	core::memory::Arena *threadMessageBackBuffers;
-	core::memory::Allocator *allocator;
-	core::ThreadIdProvider noThreading;
-	bool active_;
 	size_t threadCount;
 	
 	network::Server *server;

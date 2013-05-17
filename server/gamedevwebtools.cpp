@@ -524,16 +524,6 @@ void SHA1PadMessage(SHA1Context *context)
  */
 namespace gamedevwebtools {
 namespace core {
-	
-/*
- * Default threading - assumes one active thread.
- */
-size_t ThreadIdProvider::currentThreadId() const {
-	return 0;
-}
-size_t ThreadIdProvider::maxThreadId() const {
-	return 0;
-}
 
 /**
  * A small stack buffer for string and data building.
@@ -657,7 +647,7 @@ namespace memory {
  */
 class Arena {
 public:
-	Arena(Allocator *allocator,size_t preallocate = 0);
+	Arena(Service *allocator,size_t preallocate = 0);
 	~Arena();
 	void *allocate(size_t size);
 	void reset();
@@ -670,18 +660,18 @@ public:
 	void grow(size_t size);
 private:
 	uint8_t *alloc,*end,*begin;
-	Allocator *allocator;
+	Service *allocator;
 };
 
-Arena::Arena(Allocator *allocator,size_t preallocate) {
+Arena::Arena(Service *allocator,size_t preallocate) {
 	begin = preallocate > 0? 
-		(uint8_t*)allocator->allocate(preallocate) : nullptr;
+		(uint8_t*)allocator->onMalloc(preallocate) : nullptr;
 	end = begin + preallocate;
 	alloc = begin;
 	this->allocator = allocator;
 }
 Arena::~Arena() {
-	if(begin) allocator->deallocate(begin);
+	if(begin) allocator->onFree(begin);
 	begin = end = alloc = nullptr;
 }
 /** Grows the arena by size bytes */
@@ -689,9 +679,9 @@ void Arena::grow(size_t size) {
 	auto capacity = size_t(end - begin) 
 		+ (size < 4096? 4096 : size + 4096);
 	auto sz = size_t(alloc - begin);
-	auto dest = (uint8_t*)allocator->allocate(capacity);
+	auto dest = (uint8_t*)allocator->onMalloc(capacity);
 	memcpy(dest,begin,sz);
-	allocator->deallocate(begin);
+	allocator->onFree(begin);
 	begin = dest;end = begin + capacity;
 	alloc = begin + sz;
 }
@@ -1062,7 +1052,7 @@ enum ParseState {
  */
 class Server {
 public:
-	Server(core::memory::Allocator *allocator,Listener *listener);
+	Server(Service *allocator,Listener *listener);
 	
 	void update();
 	void write(const void *data,size_t size);
@@ -1100,7 +1090,7 @@ private:
 	void ws();
 };
 
-Server::Server(core::memory::Allocator *allocator,Listener *listener)
+Server::Server(Service *allocator,Listener *listener)
 	: readBuffer(allocator,4096), writeBuffer(allocator,4096),
 	wsReadBuffer(allocator,4096)
 {
@@ -1582,8 +1572,6 @@ Message::Message(const char *type,const Field &a,const Field &b,
  * The messaging service uses double buffering to send messages.
  */
 Service::Service() {
-	allocator = nullptr;
-	threading = nullptr;
 	threadMessageBackBuffers = threadMessageBuffers = nullptr;
 	server = nullptr;
 	clients = nullptr;
@@ -1595,28 +1583,29 @@ Service::Service() {
 }
 
 void Service::init(
-	core::memory::Allocator *memoryProvider,
 	const ApplicationInformation &appInfo,
 	const NetworkOptions &netOptions,
-	core::ThreadIdProvider *multithreadingUtils) 
+	size_t threadCount) 
 {
-	assert(memoryProvider);
-	allocator = memoryProvider;
-	threading = multithreadingUtils? multithreadingUtils : (&noThreading);
+	if(threadCount < 1){
+		assert(false && "Thread count must be at least 1!");
+		threadCount = 1;
+	}
+	this->threadCount = threadCount;
 	
 	//Get the thread message buffers.
-	threadCount = threading->maxThreadId() + 1;
+	
 	threadMessageBuffers = (core::memory::Arena*)
-		memoryProvider->allocate(sizeof(core::memory::Arena)*threadCount);
+		onMalloc(sizeof(core::memory::Arena)*threadCount);
 	threadMessageBackBuffers = (core::memory::Arena*)
-		memoryProvider->allocate(sizeof(core::memory::Arena)*threadCount);
+		onMalloc(sizeof(core::memory::Arena)*threadCount);
 	auto initialSize = netOptions.threadMessageBufferInitialSize;
 	assert(initialSize > 0);
 	for(size_t i = 0;i <  threadCount;++i) {
 		new(threadMessageBuffers + i) 
-			core::memory::Arena(allocator,initialSize);
+			core::memory::Arena(this,initialSize);
 		new(threadMessageBackBuffers + i) 
-			core::memory::Arena(allocator,initialSize);
+			core::memory::Arena(this,initialSize);
 	}
 	
 	assert(netOptions.maxConnectedClients > 0);
@@ -1626,20 +1615,20 @@ void Service::init(
 		network::init();
 	
 	// Create a networking server.
-	server = new(allocator->allocate(sizeof(network::Server)))
+	server = new(onMalloc(sizeof(network::Server)))
 		network::Server(netOptions.ipv6? network::IPv6 : network::IPvDefault);
 		
 	// Allocate networking clients.
 	clientCount = netOptions.maxConnectedClients;
 	activeClientCount = 0;
-	clients = (network::Listener*)allocator->allocate(
+	clients = (network::Listener*)onMalloc(
 		sizeof(network::Listener)*clientCount);
 #ifndef GAMEDEVWEBTOOLS_NO_WEBSOCKETS
-	wsclients = (network::websocket::Server*)allocator->allocate(
+	wsclients = (network::websocket::Server*)onMalloc(
 		sizeof(network::websocket::Server)*clientCount);
 #endif
 	
-	info = appInfo;	
+	info = appInfo;
 	
 	// Start listening.
 	auto port = netOptions.port;
@@ -1663,7 +1652,7 @@ void Service::init(
 }
 
 Service::~Service() {
-	assert(allocator && "gamedevwebtools::Service wasn't initialized!");
+	assert(threadCount > 0 && "gamedevwebtools::Service wasn't initialized!");
 	
 	for(size_t i = 0;i < activeClientCount;++i) {
 #ifndef GAMEDEVWEBTOOLS_NO_WEBSOCKETS
@@ -1680,12 +1669,12 @@ Service::~Service() {
 	
 	activeClientCount = 0;
 #ifndef GAMEDEVWEBTOOLS_NO_WEBSOCKETS
-	allocator->deallocate(wsclients);
+	onFree(wsclients);
 #endif
-	allocator->deallocate(clients);
-	allocator->deallocate(server);
-	allocator->deallocate(threadMessageBackBuffers);
-	allocator->deallocate(threadMessageBuffers);
+	onFree(clients);
+	onFree(server);
+	onFree(threadMessageBackBuffers);
+	onFree(threadMessageBuffers);
 	
 	if(netInit)
 		network::shutdown();
@@ -1700,7 +1689,7 @@ bool Service::checkForNewClient() {
 		if(result == network::Server::ErrorNone){
 #ifndef GAMEDEVWEBTOOLS_NO_WEBSOCKETS
 			new(wsclients + activeClientCount) 
-				network::websocket::Server(allocator,
+				network::websocket::Server(this,
 					clients + activeClientCount);
 #endif
 			activeClientCount++;
@@ -1824,6 +1813,13 @@ void Service::update() {
 #endif
 }
 
+void *Service::onMalloc(size_t size) {
+	return ::malloc(size);
+}
+void Service::onFree(void *ptr) {
+	::free(ptr);
+}
+
 /* Send a message. */
 void Service::send(const Message &message) {
 	send(message,nullptr,0);
@@ -1884,8 +1880,8 @@ void Service::send(const uint8_t *data,size_t size,size_t binaryDataSize,
 	auto totalSize = size + 2;
 	
 	// Allocate the memory for the message.
-	auto threadId = threading->currentThreadId();
-	assert(threadId < threadCount); //Enforce the ThreadIdProvider contract.
+	auto threadId = currentThreadId();
+	assert(threadId < threadCount); //Enforce the threadId contract.
 	auto dest = 
 		(uint8_t*)threadMessageBuffers[threadId].allocate(totalSize+binaryDataSize);
 	
@@ -1896,6 +1892,9 @@ void Service::send(const uint8_t *data,size_t size,size_t binaryDataSize,
 	memcpy(dest+2,data,size);
 	if(binaryDataSize)
 		memcpy(dest+2+size,binaryData,binaryDataSize);
+}
+size_t Service::currentThreadId() const {
+	return 0;
 }
 
 /* Recieve a message */
@@ -1999,7 +1998,8 @@ static double setExponent(double x,int32_t exponent) {
 	return value.real;
 }
 static char* parseNumber(Service *self, char *begin,
-	const char *end, const char *keyStr, Message::Field &result) {
+	const char *end, const char *keyStr, Message::Field &result) 
+{
 	int32_t integer = 0;
 	enum {
 		Negative = 1, Frac = 2, Exp = 4, NegativeExp = 8

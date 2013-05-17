@@ -21,17 +21,6 @@ double now() {
 	return (double)c / double(f);
 }
 
-class Alloc : public gamedevwebtools::core::memory::Allocator {
-public:
-	void *allocate(size_t size) override {
-		return malloc(size);
-	}
-	void deallocate(void *p) override {
-		return free(p);
-	}
-};
-Alloc allocator;
-
 int main() {
 	SDL_Init(SDL_INIT_VIDEO);
 
@@ -108,7 +97,7 @@ int main() {
 	Service::NetworkOptions netOpts;
 	netOpts.blockUntilFirstClient = true;
 	SampleService service(ints);
-	service.init(&allocator,info,netOpts);
+	service.init(info,netOpts);
 	
 	auto firstT = now();
 	auto lastT = firstT;	

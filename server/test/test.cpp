@@ -42,25 +42,28 @@ int main() {
 	//memory
 	{
 		using namespace gamedevwebtools::core::memory;
-		
-		class MallocAllocator : public Allocator {
+				
+		class MallocAllocator : public gamedevwebtools::Service {
 		public:
 			int count;
 			
 			MallocAllocator() : count(0) {}
-			virtual void *allocate(size_t size) {
+			void *onMalloc(size_t size) override {
 				++count;
 				return malloc(size);
 			}
-			virtual void deallocate(void *p) {
+			void onFree(void *p) override {
 				--count;
 				return free(p);
 			}
 		};
-		MallocAllocator alloc;
+		
+		// Don't initialize, use only onMalloc and onFree, don't delete
+		// so the destructor won't be called.
+		auto alloc = new MallocAllocator;
 		{
-			Arena arena(&alloc,4096);
-			assert(alloc.count == 1);
+			Arena arena(alloc,4096);
+			assert(alloc->count == 1);
 			assert(arena.size() == 0);
 			assert(arena.remaining() == 4096);
 			assert(arena.base() == arena.top());
@@ -69,17 +72,17 @@ int main() {
 			assert(arena.base() == p);
 			assert(arena.size() == 128);
 			assert(arena.remaining() == 4096 - 128);
-			assert(alloc.count == 1);
+			assert(alloc->count == 1);
 			
 			p = arena.allocate(4096);
 			assert(arena.size() == 4096 + 128);
-			assert(alloc.count == 1);
+			assert(alloc->count == 1);
 			
 			arena.reset();
 			assert(arena.size() == 0);
 			assert(arena.base() == arena.top());
 		}
-		assert(alloc.count == 0);
+		assert(alloc->count == 0);
 	}
 	
 	//text
