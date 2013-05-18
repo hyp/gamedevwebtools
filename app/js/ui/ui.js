@@ -103,6 +103,9 @@ function Ui() {
 			$("#appStepButton").hide();		
 		}
 	});
+	$("#appStepButton").click(function() {
+		application.step();
+	});
 	
 	this.averageFps = 0;
 	this.appFpsText = $("#appFps span");

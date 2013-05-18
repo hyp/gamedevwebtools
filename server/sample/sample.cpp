@@ -63,10 +63,11 @@ int main() {
 		ArrayOfIntegers &ints;
 		bool done;
 		bool active;
+		bool step;
 		
 		
 		SampleService(ArrayOfIntegers &integers) 
-			: ints(integers),done(false),active(true) 
+			: ints(integers),done(false),active(true),step(false)
 		{
 		}
 		
@@ -77,6 +78,10 @@ int main() {
 		void onApplicationActivate() {
 			active = !active;
 			printf("Activating the application\n");
+		}
+		void onApplicationStep() {
+			printf("Stepping one frame\n");
+			step = true;
 		}
 		void onNewClient() override {
 			printf("A new client has connected\n");
@@ -110,6 +115,7 @@ int main() {
 	
 	service.connect("application.service.quit",service,&SampleService::onApplicationQuit);
 	service.connect("application.service.activate",service,&SampleService::onApplicationActivate);
+	service.connect("application.service.step",service,&SampleService::onApplicationStep);
 	service.connect("print",&SampleService::print);
 	service.connect("rogerThat",&SampleService::rogerThat);
 	service.connect("allocate",service,&SampleService::allocate);
@@ -117,18 +123,26 @@ int main() {
 	service.connect("input.keyup",service,&SampleService::keyup);
 	
 	auto firstT = now();
-	auto lastT = firstT;	
+	auto lastT = firstT;
+	auto lastDt = 0.0;
 	size_t frameId = 0;
 	float x = 0.0f;
 
 	// A dummy game loop.
+	bool skippedFrames = false;
 	while(!service.done) {
-		if(service.active){
+		if(service.active || service.step){
+			service.step = false;
+			
 			auto t = now();
 			auto dt = t - lastT;
+			if(skippedFrames) dt = lastDt; //Don't go crazy after becoming active.
+			lastDt = dt;
 			auto frameT = t - firstT;
 			lastT = t;
 			service.frameStart(frameT);
+			
+			skippedFrames = false;
 			
 			// Frame timing information.
 			service.send(Message("monitoring.frame",
@@ -178,11 +192,11 @@ int main() {
 				intsPrevMemUsage = ints.memoryUsage();
 			}
 			++frameId;
-		}
+			x+=0.1f;
+		} else skippedFrames = true;
 		
 		service.update();
 		auto sleepTime = fabs(sin(x)*40.0f);
-		x+=0.1f;
 		SDL_Delay(int(sleepTime));
 	}
 
