@@ -1953,6 +1953,11 @@ Service::~Service() {
 		threadMessageBuffers[i].~Arena();
 	}
 	
+	messageTypeMapping->~HashTable();
+	messageHandlers->~Arena();
+	onFree(messageTypeMapping);
+	onFree(messageHandlers);
+	
 	activeClientCount = 0;
 #ifndef GAMEDEVWEBTOOLS_NO_WEBSOCKETS
 	onFree(wsclients);

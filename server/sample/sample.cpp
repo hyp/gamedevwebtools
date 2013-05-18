@@ -63,13 +63,11 @@ int main() {
 		ArrayOfIntegers &ints;
 		bool done;
 		bool active;
-		size_t prevMemUsage;
 		
 		
 		SampleService(ArrayOfIntegers &integers) 
 			: ints(integers),done(false),active(true) 
 		{
-			prevMemUsage = 0;
 		}
 		
 		void onApplicationQuit() {

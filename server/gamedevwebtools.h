@@ -21,7 +21,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <utility>
-#include <new>
 
 #ifndef GAMEDEVWEBTOOLS_CONSTEXPR
 	#ifdef _MSC_VER
@@ -345,10 +344,6 @@ public:
 	 *   from one thread.
 	 * 
 	 *   The functions/methods callbacks are called only from inside update.
-	 * 
-	 * Efficiency considerations:
-	 *   When a message is received its type is hashed.
-	 *   Then it is dispatched. (hidden virtual method dispatch).
 	 */
 	/** 
 	 * The following four methods provide a binding between a message type
