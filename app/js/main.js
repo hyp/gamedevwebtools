@@ -3,7 +3,6 @@
  * 
  * This is a client side application.
  */
-window.WebSocket = window.WebSocket || window.MozWebSocket;
 
 var logging = {
 	//Sources
@@ -22,14 +21,6 @@ var logging = {
 	message: function(source,level,str) {}
 };
 
-/** Local storage fallback for older browsers */
-if(!localStorage) {
-	localStorage = {
-		getItem: function(i){ return null; },
-		setItem: function(i,v) {}
-	};
-	console.log("Warning - local storage isn't supported!");
-}
 
 /**
  * Application.
