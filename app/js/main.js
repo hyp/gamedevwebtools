@@ -45,7 +45,6 @@ function Application() {
 	this.active = true;
 	
 	this.ws = null;//websocket object.
-	this.averageFps = 0;
 	
 	var opt = localStorage.getItem('application.options');
 	if(opt){
