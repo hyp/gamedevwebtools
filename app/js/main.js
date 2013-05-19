@@ -53,6 +53,11 @@ function Application() {
 	
 	// message handlers.
 	this.handlers = {};
+	this.handle("gamedevwebtools.unhandled", function(msg) {
+		application.error(
+			"The application doesn't recognise the message with the type '"+
+			msg.msgtype+"'");
+	});
 	this.handle("tooling.pipe.application.connected", function(frameId,val){
 		application.log('The application connected to the piping server.');
 	});
@@ -201,7 +206,7 @@ Application.prototype.onInit = function() {
 	}
 	function onDisconnected() {
 		application.log(
-		"Couldn't automatically connect to ws://"+
+		"Couldn't connect to ws://"+
 		application.options.autoConnectServer+"!");
 		cleanup();
 	}

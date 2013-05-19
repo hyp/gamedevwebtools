@@ -1,6 +1,8 @@
 Messages
 ------------
 
+* gamedevwebtools.unhandled - the application doesn't understand this message.
+
 * application.service.quit - instructs the application to exit.
 * application.service.activate - instructs the application to activate/deactivate itself.
 * application.service.step - if an application is currently deactivated, this message instructs the application to activate for just one frame.

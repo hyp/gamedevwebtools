@@ -2471,6 +2471,9 @@ size_t Service::parse(char *message,size_t size) {
 		auto base = (uint8_t*)messageHandlers->base();
 		(*((BindingDispatchFunction*)(base+handler))) (
 			base + handler + sizeof(BindingDispatchFunction),resultMsg);
+	} else {
+		send(Message("gamedevwebtools.unhandled",
+			Message::Field("msgtype",result.type)));
 	}
 	return result.binaryDataSize;
 }
