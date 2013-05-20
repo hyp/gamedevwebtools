@@ -55,7 +55,7 @@ Gamedev web tools uses Websockets to send binary messages with JSON headers betw
 
 **5)** Finally, the message or messages are send over the websockets layer as a websockets binary message.
 
-A list of currently used message types and expected properties can be seen in the file [docs/messages.md](http://github.com/hyp/gamedevwebtools/blob/master/docs/extending.md)
+A list of currently used message types and expected properties can be seen in the file [docs/messages.md](http://github.com/hyp/gamedevwebtools/blob/master/docs/messages.md)
 
 ### Integration with your game/game engine
 
