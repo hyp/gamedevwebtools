@@ -13,6 +13,11 @@
 <script src="js/dependencies/bootstrap.min.js"></script>
 <script src="js/dependencies/jquery.jkey.min.js"></script>
 
+<script src="js/dependencies/zip/zip.js"></script>
+<script src="js/dependencies/zip/inflate.js"></script>
+<script src="js/dependencies/zip/zip-ext.js"></script>	
+
+
 </head>
 <body>
 
@@ -152,7 +157,6 @@
 
 <!--Options-->
 <div id="optionsView" class="dontShowAtStart">
-<form>
 	<h4>Connection</h4>
 	<label class="checkbox">
 	<input id="optionsAutoconnect" type="checkbox"/>
@@ -163,14 +167,53 @@
 	Periodically probe for a running application.
 	</label>
 
-	
-	<!--<h4><br>Extensions</h4>   
-    <div class="row-fluid">
-    <ul id="optionsExtensions" class="span4 unstyled">
-    <li>View: a simple something <a><i class="icon-remove" title="remove"></i></a></li>
+	<!-- extensions -->
+	<h4><br>Extension packages</h4> 
+	<div id="optionsExtensionsSearchBar" 
+		class="input-prepend input-append" style="margin-left:1px;">
+		<span class="add-on"><i class="icon-search"></i></span>
+		<input id="" type="text" value=""/>
+
+		<div class="btn-group">
+		<button class="btn"
+			title="Search for a package in the installed packages">
+			Search</button>
+		<button class="btn dropdown-toggle" data-toggle="dropdown" 
+			title="Add a new package">
+			Add new 
+			<span class="caret"></span>
+		</button>
+		<ul class="dropdown-menu">
+			<li><a id="optionsExtensionsNew">Choose file..</a></li>
+			<li><a id="optionsExtensionsNewUrl">Enter url..</a></li>
+		</ul>
+		</div>
+	</div>
+	<div id="optionsExtensionsUrlBar" 
+		class="dontShowAtStart">
+		<div class="input-prepend input-append" style="margin-left:1px;">
+		<button id="optionsExtensionsUrlBack" class="btn">
+			<i class="icon-arrow-left"></i></button>
+		<input id="optionsExtensionsUrl" class="span8" type="text" value="" 
+			placeholder="e.g. http://github.com/gamedevwebtools/package-sample-hello-world/zipball/master"/>
+		<button class="btn" id="optionsExtensionsUrlGet">
+			Download</button>
+		</div>
+		<div id="optionsExtensionsUrlWarn" 
+			class="alert alert-error dontShowAtStart">
+			<strong>Warning!</strong>
+			Some browsers don't allow download requests when gamedevwebtools 
+			is working directly from the filesystem (file://...).<br/>
+			Therefore, Download button will open the link in a new tab, and
+			you will have to add the downloaded zip file manually with the choose file option.
+		</div>
+	</div>
+	<input id="optionsExtensionNewFile" type="file" accept="application/zip" style="opacity:0;"/>
+	<div class="well well-small overflowWidget">
+    <ul id="optionsExtensions" class="unstyled">
+		<li><h5>You don't have any extension packages installed :(</h5></li>
     </ul>
     </div>
-	<a>Add a new extension</a>-->
 	
 	
 	<!--
@@ -189,7 +232,6 @@
 	<button class="btn" type="button">Export data(TODO)</button>-->
 	
 
-</form>
 </div>
 
 <!--help-->
@@ -233,6 +275,7 @@
 <!--Load the application-->
 <script src="js/core/core.js"></script>
 <script src="js/core/browserFeatures.js"></script>
+<script src="js/application/packageManager.js"></script>
 <script src="js/main.js"></script>
 <script src="js/ui/components.js"></script>
 <script src="js/ui/graphView.js"></script>

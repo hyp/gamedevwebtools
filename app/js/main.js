@@ -21,7 +21,6 @@ var logging = {
 	message: function(source,level,str) {}
 };
 
-
 /**
  * Application.
  * 
@@ -35,8 +34,17 @@ function Application() {
 	this.threadCount = 2;
 	this.active = true;
 	
-	this.ws = null;//websocket object.
+	this.packageManager = new ApplicationPackageManager();
 	
+	this.ws = null;//websocket object.
+	if(window)
+		window.onbeforeunload = (function(){
+			if(this.ws) {
+				this.ws.onclose = function() {};
+				this.ws.close();
+			}
+		}).bind(this);
+		
 	var opt = localStorage.getItem('application.options');
 	if(opt){
 		this.options = JSON.parse(opt);
@@ -188,6 +196,9 @@ Application.prototype.resetProbing = function() {
 	}
 }
 Application.prototype.onInit = function() {
+	// packages.
+	this.packageManager.internal.load();
+	
 	this.probeForConnectionRunning = false;
 	this.resetProbing();
 	if(this.options.autoConnect !== true) return;

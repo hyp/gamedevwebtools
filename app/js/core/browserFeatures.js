@@ -35,3 +35,8 @@ if(!localStorage) {
             clearTimeout(id);
         };
 })());
+
+if (window.File && window.FileReader && window.FileList && window.Blob) {
+} else {
+	alert("Your browser doesn't support file API!");
+}

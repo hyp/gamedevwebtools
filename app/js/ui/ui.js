@@ -30,12 +30,8 @@ function Ui() {
 	} else 
 		this.resetOptions();
 	
-	
-	window.onbeforeunload = function(){
-		application.disconnect();
-	};
 	$(window).resize(function(){
-		if(ui.currentTool)
+		if(ui.currentTool && (typeof ui.currentTool.resize) === "function")
 			ui.currentTool.resize();
 	});
 	
@@ -235,6 +231,58 @@ Ui.prototype.switchToTool = function(tool) {
  */
 function OptionsView(widget) {
 	this.widget = widget;
+	
+	
+	this.checkbox($("#optionsAutoconnect"),application,
+		application.options,"autoConnect");
+	this.checkbox($("#optionsProbe"),application,
+		application.options,"probeForRunningApplications");
+		
+	$("#optionsUiReset").click(function(){ ui.resetOptions(); });
+	
+	// extensions
+	application.on('packages',function() {
+		var destination = $("#optionsExtensions");
+		var html = "";
+		application.packageManager.foreachPackage(function(package) {
+			html += '<li><h5>'+package.name+'</h5><div><span>'+
+				((typeof package.description) == "string"?
+					package.description : "no description")+
+				'</span><div class="pull-right"><button class="btn" onClick="application.packageManager.unistall(\''+
+				package.name+
+				'\')">Remove</button></div></div></li>';	
+		});
+		destination.html(html);
+	});
+	$("#optionsExtensionsNew").click(function() {
+		$("#optionsExtensionNewFile").val('');
+		$("#optionsExtensionNewFile").click();
+	});
+	$("#optionsExtensionNewFile").change(function(event) {
+		var files = event.target.files;
+		var file = files[0];	
+		application.packageManager.installFile(file);
+	});
+	$("#optionsExtensionsNewUrl").click(function() {
+		$("#optionsExtensionsSearchBar").hide();
+		$("#optionsExtensionsUrlBar").show();
+	});
+	$("#optionsExtensionsUrlBack").click(function() {
+		$("#optionsExtensionsUrlBar").hide();
+		$("#optionsExtensionsSearchBar").show();		
+	});
+	this.loadingNotSupported = false;
+	$("#optionsExtensionsUrlGet").click((function() {
+		if(this.loadingNotSupported)
+			window.open($("#optionsExtensionsUrl").val(),'_blank');
+		else 
+			application.packageManager.installUrl(
+				$("#optionsExtensionsUrl").val());		
+	}).bind(this));
+	if(window.location.protocol === "file:"){
+		$("#optionsExtensionsUrlWarn").show();
+		this.loadingNotSupported = true;
+	}
 }
 OptionsView.prototype.checkbox = function(sel,control,map,key) {
 	sel.prop('checked',map[key] === true);
@@ -262,14 +310,7 @@ OptionsView.prototype.onShow = function() {
 				return false;
 			});
 		}
-	}
-	
-	this.checkbox($("#optionsAutoconnect"),application,
-		application.options,"autoConnect");
-	this.checkbox($("#optionsProbe"),application,
-		application.options,"probeForRunningApplications");
-	
-	$("#optionsUiReset").click(function(){ ui.resetOptions(); });
+	}	
 }
 
 
