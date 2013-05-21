@@ -9,20 +9,6 @@ function Ui() {
 	this.currentSubTab = null;
 	this.currentSubTabName = "";
 	
-	// message handlers.
-	this.handlers = {};
-	this.handle("monitoring.frame", function(val){
-		ui.fpsCounterTool.onFrame(val);
-		ui.frameDt.update();
-		ui.memoryUsage.setXValueMax(val.t);
-	});
-	this.handle("monitoring.memory", function(val) {
-		ui.memoryUsage.update();
-	});
-	this.handle("profiling.task", function(val){
-		ui.profilingThreads.update(true);
-	});
-	
 	var opt = localStorage.getItem("ui.options");
 	if(opt){
 		this.options = JSON.parse(opt);
@@ -47,7 +33,7 @@ function Ui() {
 	$("#serverAddressInput").jkey('enter',connect);
 	
 	application.on('change', function() {
-		$("#appTitle b").text(application.name);
+		$("#appTitle b").text(application.information.name);
 	});
 	application.on('connected',function() {
 		$("#applicationNotConnectedControls").hide();
@@ -114,10 +100,20 @@ function Ui() {
 	this.consoleTool.onFocus(this.keyboardButtonTool.reset.bind(
 		this.keyboardButtonTool));
 	this.fpsCounterTool = new FpsCounterTool();
+	application.data.frameDt.on(application.data.EventType.push,
+		function(item) {
+			ui.memoryUsage.setXValueMax(item[0]);
+			ui.fpsCounterTool.onFrame({dt: item[1]/1000.0}); 
+		}
+	);
 	
 	this.frameDt = new FrameDtView();
 	this.profilingResults = new ProfilingTimerView();
-	this.profilingThreads = new ProfilingThreadView();
+	this.profilingThreads =
+		new ProfilingThreadView(application.data.frameTasksProfilingResults.arrays);
+	application.data.frameTasksProfilingResults.on(application.data.EventType.any,
+		(function() { this.update(true); }).bind(this.profilingThreads));
+		
 	this.memoryUsage = new MemoryUsageView();
 	this.shaders = new TextInput("shadersView");
 	
@@ -165,13 +161,7 @@ function Ui() {
 	})();
 }
 Ui.prototype.handle = function(msg,callback) {
-	if((typeof callback) !== "function"){
-		application.error("ui.handle needs a function callback");
-	}
-	if(msg in this.handlers){
-		this.error("The message '"+msg+"' already has a handler");
-	}
-	else this.handlers[msg] = callback;
+	throw new Error("deprecated handle");
 }
 Ui.prototype.resetOptions = function() {
 	this.options = { consoleHeight: 140 };
@@ -244,13 +234,13 @@ function OptionsView(widget) {
 	application.on('packages',function() {
 		var destination = $("#optionsExtensions");
 		var html = "";
-		application.packageManager.foreachPackage(function(package) {
+		application.packages.forEach(function(package) {
 			html += '<li><h5>'+package.name+' '+
 				("version" in package? package.version : '')+
 				'</h5><div><span>'+
 				((typeof package.description) === "string"?
 					package.description : "no description")+
-				'</span><div class="pull-right"><button class="btn" onClick="application.packageManager.unistall(\''+
+				'</span><div class="pull-right"><button class="btn" onClick="application.packages.unistall(\''+
 				package.name+
 				'\')">Remove</button></div></div></li>';	
 		});
@@ -262,8 +252,7 @@ function OptionsView(widget) {
 	});
 	$("#optionsExtensionNewFile").change(function(event) {
 		var files = event.target.files;
-		var file = files[0];	
-		application.packageManager.installFile(file);
+		application.packages.installFile(files[0]);
 	});
 	$("#optionsExtensionsNewUrl").click(function() {
 		$("#optionsExtensionsSearchBar").hide();
@@ -278,7 +267,7 @@ function OptionsView(widget) {
 		if(this.loadingNotSupported)
 			window.open($("#optionsExtensionsUrl").val(),'_blank');
 		else 
-			application.packageManager.installUrl(
+			application.packages.installUrl(
 				$("#optionsExtensionsUrl").val());		
 	}).bind(this));
 	if(window.location.protocol === "file:"){

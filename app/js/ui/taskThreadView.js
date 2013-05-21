@@ -3,7 +3,7 @@
 /**
  * ProfilingThreadView.
  */
-function ProfilingThreadView() {
+function ProfilingThreadView(data) {
 	this.widget = $("#profilingThreadView");
 	var c = $("#profilingThreadView div canvas");
 	this.sel = c;
@@ -12,6 +12,7 @@ function ProfilingThreadView() {
 	this.pixelsPerSecond = 1000 * ((200)/10);
 	this.isVisible = false;
 	this.needsRedraw = false;
+	this.data = data;
 	// Components.
 	this.viewComponent = new ViewportComponent(this,this.sel);
 	this.viewComponent.updateScalingLimits(0.1,1,300,1);
@@ -77,10 +78,10 @@ ProfilingThreadView.prototype.resize = function() {
 }
 /// Compute inner size in terms of time.
 ProfilingThreadView.prototype.computeInnerSize = function() {
-	var fdata = frameData.arrays.taskProfiles;
+	var fdata = this.data;
 	if(!fdata.length) return 0;
 	var scaleX = this.pixelsPerSecond;
-	var threadCount = application.threadCount;
+	var threadCount = application.information.threadCount;
 	
 	var x = 0;
 	
@@ -117,13 +118,13 @@ ProfilingThreadView.prototype.update = function(autoscroll) {
 }
 /// Layout the visible frames in terms of time and view.
 ProfilingThreadView.prototype.layoutFrames = function() {
-	var fdata = frameData.arrays.taskProfiles;
+	var fdata = this.data;
 	if(!fdata.length){
 		this.visibleFrames = null;
 		return;
 	}
 	
-	var threadCount = application.threadCount;
+	var threadCount = application.information.threadCount;
 	var scaleX = this.pixelsPerSecond * this.viewComponent.scaleX;
 	
 	// Reset thread depth.
@@ -187,7 +188,7 @@ ProfilingThreadView.prototype.layoutFrames = function() {
 	this.visibleFrames = cells;
 }
 ProfilingThreadView.prototype.layoutThreads = function() {
-	var threadCount = application.threadCount;
+	var threadCount = application.information.threadCount;
 	
 	if(!this.threadLayout || this.threadLayout.length < threadCount)
 		this.threadLayout = new Float32Array(threadCount);
@@ -251,13 +252,13 @@ ProfilingThreadView.prototype.draw = function() {
 	var ctx=this.canvas.getContext("2d");
 	//Set the font.
 	ctx.font="14px Arial";
-	var fdata = frameData.arrays.taskProfiles;
+	var fdata = this.data;
 	if(!fdata.length) return;
 	//var textColour = this.sel.css('color');
 	//if(!textColour) 
 	textColour = "#FFFFFF";
 	
-	var threadCount = application.threadCount;
+	var threadCount = application.information.threadCount;
 	var pixelsPerSecond = this.pixelsPerSecond;
 	
 	this.layoutFrames();

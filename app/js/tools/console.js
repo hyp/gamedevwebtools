@@ -26,7 +26,7 @@ function ConsoleTool() {
 	
 	this.logHtml = '';
 	this.logDepth = 0;
-	logging.message = this.appendToLogOutput.bind(this);
+	application.logging.message = this.appendToLogOutput.bind(this);
 }
 ConsoleTool.prototype.logLevels = [
 	"Trace","Debug","Information","Warning",
@@ -40,7 +40,8 @@ ConsoleTool.prototype.lineToHtml = function(source,level,str) {
 	return (this.logDepth === 0? 
 		'<span>': '<span class="viewLogInnerMessage">')+ 
 		'<span class="label '+this.logLevelStyles[level]+
-		'">'+(source == logging.Local? '<i class="icon-wrench"></i> ':'')+
+		'">'+
+		(source == application.logging.Local? '<i class="icon-wrench"></i> ':'')+
 		this.logLevels[level]+'</span><span class="viewLogMessage">'+
 		str + '</span></span><br>';
 }

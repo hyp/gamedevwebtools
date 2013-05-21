@@ -22,14 +22,14 @@ Fields:
   the order of their apperance.
 * version - the version of the package. The version must be a string in the format
   "x"/"x.x"/"x.x.x" where x is a string of digits(0-9).
-* description - the description of the packages.
+* description - the description of the package.
 * dependencies - an array of package names and versions.
 
 Example:
 
 	{
 		"name": "sample",
-		"files": "sample.js",
+		"files": ["sample.js"],
 		"version": "1.0",
 		"description": "Just a sample package"
 	}

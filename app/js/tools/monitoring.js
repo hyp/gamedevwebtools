@@ -4,17 +4,23 @@
  * 
  * Uses:
  * 	 tab with id profilingTimeGraphView.
+ *   application.data.frameDt, application.data.frameRawDt]
  */
 function FrameDtView() {
 	FrameDtView.superclass.constructor.call(this,
 	'profilingTimeGraphView',
-	[frameData.arrays.dt, frameData.arrays.rawDt],
+	[application.data.frameDt.array, application.data.frameRawDt.array],
 	{
-		labels:[["Frame start (s): ","DT (ms): "],
-				["Frame start (s): ","Raw(unfiltered) DT (ms): "]]
+		labels: [
+		["Frame start (s): ","DT (ms): "],
+		["Frame start (s): ","Raw(unfiltered) DT (ms): "] ]
 	});
 	// Plot 0 to 60 ms.
 	this.setYValueLimits(0,60);
+	application.data.frameDt.on(application.data.EventType.any,
+		this.update.bind(this));
+	application.data.frameRawDt.on(application.data.EventType.any,
+		this.update.bind(this));
 }
 core.extend(FrameDtView,GraphView);
 
@@ -25,48 +31,62 @@ core.extend(FrameDtView,GraphView);
  * 
  * Uses:
  *   tab with id memoryUsageGraphView.
+ *   application.data.memoryUsage
  */
 function MemoryUsageView() {
 	MemoryUsageView.superclass.constructor.call(this,
 	'memoryUsageGraphView',
-	data.memoryUsage.arrays,
+	application.data.memoryUsage.arrays,
 	{
 		labels: [["Time (s): ","Memory (MiB): "]]
 	});
 	this.setYValueLimits(0,1);
 	this.pointInformation = function(index,point) {
-		return data.memoryUsage.getAllocator(index);
+		return application.data.memoryUsage.getAllocator(index);
 	}
+	
+	application.data.memoryUsage.on(application.data.EventType.any,
+		this.update.bind(this));
 }
 core.extend(MemoryUsageView,GraphView);
 MemoryUsageView.prototype.update = function() {
 	// SetYLimits.
-	if(data.memoryUsage.max < 1)
+	var max = application.data.memoryUsage.max;
+	if(max < 1)
 		this.setYValueLimits(0,1);
 	else 
-		this.setYValueLimits(0,data.memoryUsage.max + 1);
+		this.setYValueLimits(0,max + 1);
 	MemoryUsageView.superclass.update.call(this);
 }
 
 /**
  * A table consisting of profiling times.
- * TODO:
- *   a bit of refactoring.
+ * Uses:
+ *   application.data.profilingResults
  */
 function ProfilingTimerView() {
 	this.widget = $("#profilingResultsView");
 	this.tableBody =  $("#profilingResultsView table tbody");
-	this.appHandler =
-		application.handlers["profiling.result"];
-	var self = this;
-	application.handlers["profiling.result"] = function(val){
-		self.appHandler(val);
-		self.tableBody.append('<tr><td>'+
+	
+	function itemToHtml(val) {
+		return '<tr><td>'+
 		val.name+'</td><td>'+val.samples+
 		'<td>'+(val.mean*1000.0).toFixed(3)+' ms</td>'+
 		'<td>'+(val.median*1000.0).toFixed(3)+' ms</td>'+
 		'<td>'+(val.stddev*1000.0).toFixed(3)+' ms</td>'+
 		'<td>'+(val.total*1000.0).toFixed(3)+' ms</td>'+
-		'</td></tr>');
-	};
-};
+		'</td></tr>';
+	}
+	var self = this;
+	application.data.profilingResults.on(application.data.EventType.push,
+	function(item){
+		self.tableBody.append(itemToHtml(item));
+	});
+	application.data.profilingResults.on(application.data.EventType.change,
+	function(data){
+		var html = '';
+		for(var i = 0;i<data.length;++i)
+			html += itemToHtml(data[i]);
+		self.tableBody.html(html);
+	});
+}

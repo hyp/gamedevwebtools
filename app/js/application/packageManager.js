@@ -86,12 +86,18 @@ function ApplicationPackageManager(app) {
 				}
 				break;
 			default:
-				logging.message(logging.Local,logging.Warning,
-					"Unknown package field '" + key + 
+				application.warning("Unknown package field '" + key + 
 					"' - it will be ignored!");
 				break;
 			}
 		}
+	}
+	
+	/// Deletes a package.
+	function deletePackage(packageName) {
+		delete packages[packageName];
+		if(packageName in packageExports) 
+			delete packageExports[packageName];
 	}
 	
 	/// Creates a new package
@@ -108,6 +114,7 @@ function ApplicationPackageManager(app) {
 				(hasVersion && oldHasVersion && 
 				versionLessThan(oldPackage.version,package.version)) ){
 				//Update.
+				deletePackage(package.name);
 				application.log("The package '"+package.name+
 					"' is being updated from version '"+
 					(oldHasVersion? oldPackage.version:'')+"' to '"+
@@ -117,6 +124,15 @@ function ApplicationPackageManager(app) {
 				"' is already installed!");
 		}
 		packages[package.name] = package;		
+	}
+	
+	/// This is called when the package is executed to export it's stuff.
+	function provide(packageName,stuff) {
+		if(packageName in packageExports) {
+			throw new Error(
+				"Can't call 'export' more than once from the same package");
+		}
+		packageExports[packageName] = stuff;
 	}
 	
 	/// Executes the package.
@@ -142,7 +158,9 @@ function ApplicationPackageManager(app) {
 			if(package.cssSources.length)
 				insertCss(package.cssSources);
 			f = new Function(package.jsSources);
-			f();
+			var result = f();
+			if((typeof result) == "object")
+				provide(package.name,result);
 		} catch(e) {
 			success = false;
 			application.error(
@@ -174,7 +192,7 @@ function ApplicationPackageManager(app) {
 		application.raiseEvent('packages');		
 	}
 	// load packages at startup.
-	app.on('init',loadPackages.bind(this));
+	app.on('init',loadPackages);
 	
 	/// Reports an installation error.
 	function installationError(name,error) {
@@ -220,7 +238,7 @@ function ApplicationPackageManager(app) {
 		}
 		
 		if(!extension.files || !extension.files.length) {
-			logging.message(logging.Local,logging.Warning,
+			application.warning(
 				"The package '"+this.name+"' has no files.");
 			this.reader.close();
 			return;	
@@ -301,6 +319,16 @@ function ApplicationPackageManager(app) {
 // Public:
 
 	/**
+	 * This can be called from inside the package to import some other packages
+	 */
+	this.require = function (packageName) {
+		if(packageName in packageExports) {
+			return packageExports[packageName];
+		}
+		else throw new Error("The package '"+packageName+"' wasn't found!");
+	}
+	
+	/**
 	 * Enables you to provide custom loaders for files inside extension packages.
 	 */
 	this.connectExtension = function(ext,loader) {
@@ -321,7 +349,7 @@ function ApplicationPackageManager(app) {
 	this.unistall = function(packageName) {
 		var package = packages[packageName];
 		if(package) {
-			delete packages[packageName];
+			deletePackage(packageName);
 			savePackages();
 			application.log(
 				"The package '"+package.name+"' was unistalled. Please reload the page.");
@@ -375,7 +403,7 @@ function ApplicationPackageManager(app) {
 	/**
 	 * Iterates over each installed package.
 	 */
-	this.foreachPackage = function(f) {
+	this.forEach = function(f) {
 		for (var package in packages) {
 			if (packages.hasOwnProperty(package)) {
 				f(packages[package]);
