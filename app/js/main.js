@@ -33,8 +33,9 @@ function Application() {
 	this.name = "";
 	this.threadCount = 2;
 	this.active = true;
+	this.eventHandlers = {};
 	
-	this.packageManager = new ApplicationPackageManager();
+	this.packageManager = new ApplicationPackageManager(this);
 	
 	this.ws = null;//websocket object.
 	if(window)
@@ -97,7 +98,6 @@ function Application() {
 	});
 	
 	// connection event handlers.
-	this.eventHandlers = {};
 	this.disconnectTypes = {
 		possible: 0,
 		expected: 1,
@@ -197,7 +197,7 @@ Application.prototype.resetProbing = function() {
 }
 Application.prototype.onInit = function() {
 	// packages.
-	this.packageManager.internal.load();
+	this.raiseEvent('init');
 	
 	this.probeForConnectionRunning = false;
 	this.resetProbing();

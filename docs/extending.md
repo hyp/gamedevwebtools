@@ -17,18 +17,20 @@ It's similar to the NPM package.json.
 
 Fields:
 
-* name - the name of the package.
+* name - the name of the package. This field is mandatory.
 * files - an array of filenames which this package uses. The files are loaded in
   the order of their apperance.
-* description
+* version - the version of the package. The version must be a string in the format
+  "x"/"x.x"/"x.x.x" where x is a string of digits(0-9).
+* description - the description of the packages.
 * dependencies - an array of package names and versions.
-* version - the version of the package.
 
 Example:
 
 	{
 		"name": "sample",
 		"files": "sample.js",
+		"version": "1.0",
 		"description": "Just a sample package"
 	}
 	
@@ -39,7 +41,3 @@ TODO
 ### TODO
 
 Dependencies.
-
-### Bugs
-
-Zip loading doesn't work in firefox ATM.
