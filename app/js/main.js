@@ -322,10 +322,6 @@ Application.prototype.quit = function() {
 Application.prototype.step = function() {
 	this.send('application.service.step');
 }
-Application.prototype.loadExtension = function(path) {
-	if(window)
-		$("body").append('<script src="'+path+'"></script>');
-}
 
 function FrameData() {
 	this.frameCount = 200;

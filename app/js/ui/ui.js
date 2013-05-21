@@ -245,8 +245,10 @@ function OptionsView(widget) {
 		var destination = $("#optionsExtensions");
 		var html = "";
 		application.packageManager.foreachPackage(function(package) {
-			html += '<li><h5>'+package.name+'</h5><div><span>'+
-				((typeof package.description) == "string"?
+			html += '<li><h5>'+package.name+' '+
+				("version" in package? package.version : '')+
+				'</h5><div><span>'+
+				((typeof package.description) === "string"?
 					package.description : "no description")+
 				'</span><div class="pull-right"><button class="btn" onClick="application.packageManager.unistall(\''+
 				package.name+

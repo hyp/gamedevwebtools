@@ -21,6 +21,9 @@
 	overflow: auto;
 }
 
+body {
+	padding: 0 !important;
+}
 #mainContainer {
 	padding-left:4px;
 	padding-right:4px;

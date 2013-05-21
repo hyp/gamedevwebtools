@@ -110,6 +110,35 @@ function ApplicationPackageManager() {
 		package.cssSources += text;
 	}
 	
+	function parseVersion(vstring) {
+		var digits = vstring.split(".");
+		var numbers = [0,0,0];
+		if(digits.length > 3){
+			throw new Error("The package version is invalid");
+		}
+		for(var i = 0;i<digits.length;++i) {
+			if(!digits[i].length) 
+				throw new Error("The package version is invalid");
+			for(var j = 0;j<digits[i].length;++j) {
+				var c = digits[i].charCodeAt(j);
+				if(c >= "0".charCodeAt(0) &&
+				   c <= "9".charCodeAt(0)){
+					continue;
+				} else {
+					throw new Error("The package version is invalid");
+				}
+			}
+			numbers[i] = parseInt(digits[i],10);
+		}
+		return numbers;
+	};
+	
+	function versionLessThan(a,b) {
+		var major  = a[0] < b[0];
+		var minor = a[1] < b[1];
+		return major || (major && minor) || (major && minor && a[2] < b[2]);
+	}
+	
 	this.internal = {
 		packages: {},
 
@@ -120,29 +149,68 @@ function ApplicationPackageManager() {
 		
 		// Creates a new package.
 		newPackage: (function(package) {
+			this.internal.verify(package);
 			package.jsSources = "";
 			package.cssSources = "";
-			this.internal.verify(package);
+			package.enabled = true;
 			if(package.name in this.internal.packages) {
-				throw new Error("The package '"+package.name+
+				var oldPackage = this.internal.packages[package.name];
+				var hasVersion = "version" in package;		
+				var oldHasVersion = "version" in oldPackage;
+				if((hasVersion && !oldHasVersion) || 
+					(hasVersion && oldHasVersion && 
+					versionLessThan(oldPackage.version,package.version)) ){
+					//Update.
+					application.log("The package '"+package.name+
+						"' is being updated from version '"+
+						(oldHasVersion? oldPackage.version:'')+"' to '"+
+						package.version+"'");
+				} else
+					throw new Error("The package '"+package.name+
 					"' is already installed!");
 			}
 			this.internal.packages[package.name] = package;
 		}).bind(this),
 		
 		// Verifies the package.
-		verify: (function(package) {
-			var error = null;
-			if((typeof package.name) !== "string"){
-				error = "The name of the package is missing";
+		verify: function(package) {
+			function error(msg) {
+				throw new Error(msg);
 			}
-			if((typeof package.files) !== "undefined" &&
-			   (typeof package.files) !== "object") {
-				error = "The files of the package must be an array";
+			if((typeof package.name) !== "string") {
+				error("The name of the package is missing");
 			}
-			if(error) 
-				throw new Error(error);
-		}).bind(this),
+			for (var key in package) {
+				var value = package[key];
+				switch(key) {
+				case "name": break;
+				case "description":
+					if((typeof value) !== "string")
+						error("The description of the package must be a string");
+					break;
+				case "version":
+					if((typeof value) !== "string")
+						error("The version of the package must be a string");
+					parseVersion(value);
+					break;
+				case "files":
+					if(!Array.isArray(value)) {
+						error("The files of the package must be an array");
+					}
+					break;
+				case "dependencies":
+					if(!Array.isArray(value)) {
+						error("The dependencies of the package must be an array");
+					}
+					break;
+				default:
+					logging.message(logging.Local,logging.Warning,
+						"Unknown package field '" + key + 
+						"' - it will be ignored!");
+					break;
+				}
+			}
+		},
 		
 		extensions: {
 			"js":  loadJS, 
@@ -151,13 +219,32 @@ function ApplicationPackageManager() {
 		
 		// Executes the package.
 		run: function(package) {
+			if(!package.enabled) return true;
 			var success = true;
 			try {
-				eval(package.jsSources);
+				// See: http://stackoverflow.com/questions/707565/how-do-you-add-css-with-javascript
+				function insertCss(code) {
+					var style = document.createElement('style');
+					style.type = 'text/css';
+
+					if (style.styleSheet) {
+						// IE
+						style.styleSheet.cssText = code;
+					} else {
+						// Other browsers
+						style.innerHTML = code;
+					}
+					document.getElementsByTagName("head")[0].appendChild(style);
+				}
+				
+				if(package.cssSources.length)
+					insertCss(package.cssSources);
+				f = new Function(package.jsSources);
+				f();
 			} catch(e) {
 				success = false;
 				application.error(
-					"Couldn't start the package '"+package.name+"' - " + e);
+					"Couldn't start the package '"+package.name+"' - " + e.message);
 			}
 			if(success) {
 				application.log("Loaded the package '"+package.name+"'");
@@ -189,12 +276,14 @@ function ApplicationPackageManager() {
 }
 /**
  * Enables you to provide custom loaders for files inside extension packages.
- * TODO: error
  */
-ApplicationPackageManager.prototype.registerFileExtension = function(ext,loader) {
-	if((typeof ext) !== "string") return;
-	if((typeof loader) !== "function") return;
-	if(ext in this.internal.extensions) return;
+ApplicationPackageManager.prototype.connectExtension = function(ext,loader) {
+	if((typeof ext) !== "string") 
+		throw new Error("extension must be a string");
+	if((typeof loader) !== "function") 
+		throw new Error("loader must be a function");
+	if(ext in this.internal.extensions)
+		throw new Error("The extension '"+ext+"' is already connected by another loader");
 	
 	this.internal.extensions[ext] = loader;
 }
