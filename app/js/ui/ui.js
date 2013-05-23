@@ -5,21 +5,12 @@
  */
 var ui = null;
 function Ui() {
-	this.currentTool = null;
-	this.currentSubTab = null;
-	this.currentSubTabName = "";
-	
 	var opt = localStorage.getItem("ui.options");
 	if(opt){
 		this.options = JSON.parse(opt);
 		this.applyOptions();
 	} else 
 		this.resetOptions();
-	
-	$(window).resize(function(){
-		if(ui.currentTool && (typeof ui.currentTool.resize) === "function")
-			ui.currentTool.resize();
-	});
 	
 	// Application bar
 	$(".applicationBar form").submit(function(){
@@ -64,25 +55,6 @@ function Ui() {
 		}
 	};
 	
-	this.internal = {
-		subTabCurrentButton: null,
-		
-		subTabCurrentButtonReset: (function() {
-			if(this.internal.subTabCurrentButton !== null) {
-				this.internal.subTabCurrentButton.removeClass("active");
-				this.internal.subTabCurrentButton = null;
-			}
-		}).bind(this),
-		
-		connectSubTabButton: (function(selector,tool) {
-			selector.click(function() {
-				selector.addClass("active");
-				ui.switchToTool(tool);
-				ui.internal.subTabCurrentButton = selector;
-			});
-		})
-	}
-	
 	// Keyboard shortcuts.
 	this.shortcuts = [
 	{key:'esc', name: 'Exit application',action: function(){
@@ -92,8 +64,209 @@ function Ui() {
 		ui.consoleTool.focus();
 	}}
 	];
-	this.updateShortcuts();
+	this.updateShortcuts();	
 	
+	// currentSubTab 
+	var currentSubTab = null;
+	var currentSubTabButton = null;
+	
+	// Resets the sub tab button.
+	function resetCurrentSubTab(){ 
+		if(currentSubTabButton) {
+			$(currentSubTabButton).removeClass("active");
+			currentSubTabButton = null;
+		}
+	}
+	
+	// Current tool.
+	var currentTool = null;
+	$(window).resize(function(){
+		if(currentTool && (typeof currentTool.resize) === "function")
+			currentTool.resize();
+	});
+	function switchToTool (tool) {
+		if(currentTool) {
+			currentTool.widget.hide();
+			if(currentTool.onHide)
+				currentTool.onHide();
+		}
+		if(tool){
+			tool.widget.show();
+			if(tool.onShow)
+				tool.onShow();
+		}
+		currentTool = tool;
+		resetCurrentSubTab();
+	}
+	
+	// Shows the sub tabs.
+	function showSubTab(subTab) {
+		if(currentSubTab){
+			if(currentSubTab == subTab) return;
+			$(currentSubTab).slideUp();
+		}
+		currentSubTab = subTab;
+		if(currentSubTab !== null)
+			$(currentSubTab).slideDown();
+		resetCurrentSubTab();
+	}
+	// Connects a tab to subtabs.
+	function connectTabToSubTabs(tabName) {
+		var selfChildren = document.getElementById("tab"+tabName+"Tabs");
+		var selfElement = document.getElementById("tab"+tabName);
+		var link = selfElement.getElementsByTagName('a')[0];
+		$(link).click(function() {
+			showSubTab(selfChildren);
+		});
+		return selfChildren;
+	}
+	// Connects a tab to a tool
+	function connectTabToTool(tabName,tool) {
+		var selfElement = document.getElementById("tab"+tabName);
+		var link = selfElement.getElementsByTagName('a')[0];
+		$(link).click(function() {
+			showSubTab(null);
+			switchToTool(tool);
+		});	
+	}
+	// Connects a subtab to a tool
+	function connectSubTabToTool(tabName,subTabName,tool) {
+		var selfElement = document.getElementById("tab"+tabName+"Tab"+
+			subTabName);
+		$(selfElement).click(function() {
+			$(this).addClass("active");
+			switchToTool(tool);
+			currentSubTabButton = this;
+		});
+	}
+	
+	function subTabToHtml(name,subName) {
+		return '<li><button id="tab'+name+'Tab'+subName+
+			'" class="btn tabButton">'+subName+'</button></li>';
+	}
+	function tabToHtml(rootName,name) {
+		return '<li id="tab'+name+
+			'"><a data-toggle="tab">'+name+
+			'</a></li><div id="tab'+name+
+			'Tabs" class="tabButtonGroup"></div>';
+	}
+	function getTabByName(self,name) {
+		if((typeof name) !== "string") 
+			throw new Error("tabName must be a string");
+		if(!(name in self.tabMapping))
+			throw new Error("the tab doesn't exist");
+		return self.tabMapping[name];		
+	}
+	function pushTab(self,tab) {
+		if(!(tab instanceof Tab))
+			throw new Error("tab must be a proper tab");
+		if(tab.name in self.tabMapping)
+			throw new Error("the tab with such name already exists");
+		if(self.appendSelector === null)
+			self.appendSelector = $(connectTabToSubTabs(self.name));
+		self.appendSelector.append(self.template(self.name,tab.name));
+		self.tabs.push(tab);
+		self.tabMapping[tab.name] = tab;
+		return this;
+	}
+	function findTabIndex(self,tab) {
+		for(var i = 0;i < self.tabs.length;++i) {
+			if(tab === self.tabs[i]) return i;
+		}
+		throw new Error("Couldn't find other tab");
+	}
+	function insertTab(self,tab,otherTab,after) {
+		if(!(tab instanceof Tab))
+			throw new Error("tab must be a proper tab");
+		if(!(otherTab instanceof Tab))
+			throw new Error("otherTab must be a proper tab");
+		if(tab.name in self.tabMapping)
+			throw new Error("the tab with such name already exists");
+		if(tab.template === null) 
+			selector = $(document.getElementById("tab"+self.name+"Tab"+
+				otherTab.name));
+		else
+			selector = $(document.getElementById("tab"+otherTab.name));
+		if(after) 
+			selector.after(self.template(self.name,tab.name));
+		else
+			selector.before(self.template(self.name,tab.name));
+		var i = findTabIndex(self,otherTab);
+		self.tabs.splice(after? i+1: i,0,tab);
+		self.tabMapping[tab.name] = tab;
+		return this;
+	}
+	
+	function Tab(name,selector,templateFunction) {
+		this.name = name;
+		this.tabs = [];
+		this.tabMapping = {};
+		this.appendSelector = selector;
+		this.template = templateFunction;
+		this.clickConnected = false;
+	}
+	var tabs = new Tab("",$("#tabBar"),tabToHtml);
+	
+	function newTab(name) {
+		return new Tab(name,null,subTabToHtml);
+	}
+	function newSubTab(name) {
+		return new Tab(name,null,null);
+	}
+	
+	function TabInterface(tab) {
+		this.connectToTool = function(tool) {
+			connectTabToTool(tab.name,tool);
+		}
+	}
+	function SubTabInterface(parent,tab) {
+		this.connectToTool = function(tool) {
+			connectSubTabToTool(parent.name,tab.name,tool);
+		}
+	}
+	
+	this.pushNewTab = function(name) {
+		var tab = newTab(name);
+		pushTab(tabs,tab);
+		return new TabInterface(tab);
+	}
+	this.insertNewTabAfter = function(name,otherName) {
+		var tab = newTab(name);
+		insertTab(tabs,tab,tabs.tabMapping[otherName],true);
+		return new TabInterface(tab);
+	}
+	this.insertNewTabBefore = function(name,otherName) {
+		var tab = newTab(name);
+		insertTab(tabs,tab,tabs.tabMapping[otherName],false);
+		return new TabInterface(tab);
+	}
+	
+	this.pushNewSubTab = function(parentName,name) {
+		if(!(parentName in tabs.tabMapping))
+			throw new Error("invalid parent tab");
+		var parent = tabs.tabMapping[parentName];
+		var tab = newSubTab(name);
+		pushTab(tabs.tabMapping[parentName],tab);
+		return new SubTabInterface(parent,tab);
+	}
+	this.insertNewSubTabAfter = function(parentName,name,otherName) {
+		if(!(parentName in tabs.tabMapping))
+			throw new Error("invalid parent tab");
+		var parent = tabs.tabMapping[parentName];
+		var tab = newSubTab(name);
+		insertTab(parent,tab,parent.tabMapping[otherName],true);
+		return new SubTabInterface(parent,tab);
+	}
+	this.insertNewSubTabBefore = function(parentName,name,otherName) {
+		if(!(parentName in tabs.tabMapping))
+			throw new Error("invalid parent tab");
+		var parent = tabs.tabMapping[parentName];
+		var tab = newSubTab(name);
+		insertTab(parent,tab,parent.tabMapping[otherName],false);
+		return new SubTabInterface(parent,tab);
+	}
+	
+
 	// Tools
 	this.consoleTool = new ConsoleTool();
 	this.keyboardButtonTool = new KeyboardButtonTool();
@@ -118,35 +291,24 @@ function Ui() {
 	this.shaders = new TextInput("shadersView");
 	
 	// Profiling/Monitoring tab
-	$("#tabProfiling a").click(function(){
-		ui.showSubTab('tabProfiling');
-	});
-	this.internal.connectSubTabButton($("#tabProfilingTabGraph"),this.frameDt);
-	this.internal.connectSubTabButton($("#tabProfilingTabThreads"),this.profilingThreads);
-	this.internal.connectSubTabButton($("#tabProfilingTabTimers"),this.profilingResults);
-	this.internal.connectSubTabButton($("#tabMonitorTabMemory"),this.memoryUsage);
+	connectTabToSubTabs("Monitor");
+	connectSubTabToTool("Monitor","Graph",this.frameDt);
+	connectSubTabToTool("Monitor","Threads",this.profilingThreads);
+	connectSubTabToTool("Monitor","Timers",this.profilingResults);
+	connectSubTabToTool("Monitor","Memory",this.memoryUsage);
 	
 	// Data/Assets tab
-	$("#tabData a").click(function(){
-		ui.showSubTab('tabData');
-	});
-	this.internal.connectSubTabButton($("#tabDataTabShaders"),this.shaders);
+	//this.internal.connectSubTabButton($("#tabDataTabShaders"),this.shaders);
 	
 	// Options tab
-	$("#tabOptions a").click(function(){
-		ui.showSubTab('tabOptions');
-		ui.switchToTool(ui.optionsView);
-	});
 	this.optionsView = new OptionsView($("#optionsView"));
+	connectTabToTool("Options",this.optionsView);
 	
 	// Help tab
-	$("#tabHelp a").click(function() {
-		ui.showSubTab('tabHelp');
-		ui.switchToTool(ui.helpView);
-	});
 	this.helpView = { widget: $("#helpView") };
+	connectTabToTool("Help",this.helpView);
 	
-	this.showSubTab('tabProfiling');
+	showSubTab(document.getElementById("tab"+"Monitor"+"Tabs"));	
 	
 	/*
 	 * Rendering loop.
@@ -154,14 +316,12 @@ function Ui() {
 	 * Render using requestAnimationCallback because if the game has high
 	 * FPS, we wouldn't want to redraw the tools on each frame.
 	 */
-	var self = this;
 	(function renderloop(){
 		requestAnimationFrame(renderloop);
-		self.draw();
+		if(currentTool && (typeof currentTool.draw) == "function") {
+			currentTool.draw();
+		}
 	})();
-}
-Ui.prototype.handle = function(msg,callback) {
-	throw new Error("deprecated handle");
 }
 Ui.prototype.resetOptions = function() {
 	this.options = { consoleHeight: 140 };
@@ -176,11 +336,6 @@ Ui.prototype.applyOptions = function() {
 Ui.prototype.saveOptions = function() {
 	localStorage.setItem("ui.options",JSON.stringify(this.options));
 }
-Ui.prototype.draw = function() {
-	if(this.currentTool && (typeof this.currentTool.draw) == "function") {
-		this.currentTool.draw();
-	}
-}
 Ui.prototype.updateShortcuts = function() {
 	var doc = $(document);
 	doc.unbind('keydown.jkey');
@@ -188,32 +343,6 @@ Ui.prototype.updateShortcuts = function() {
 		var shortcut = this.shortcuts[i];
 		doc.jkey(shortcut.key,shortcut.action);
 	}
-}
-Ui.prototype.showSubTab = function(subTab){
-	if(this.currentSubTab){
-		if(this.currentSubTabName == subTab) return;
-		currentSubTabStr = subTab;
-		this.currentSubTab.slideUp();
-	}
-	this.currentSubTabName = subTab;
-	this.currentSubTab = $('#'+subTab+'Tabs');
-	if(this.currentSubTab)
-		this.currentSubTab.slideDown();
-	this.internal.subTabCurrentButtonReset();
-}
-Ui.prototype.switchToTool = function(tool) {
-	if(this.currentTool) {
-		this.currentTool.widget.hide();
-		if(this.currentTool.onHide)
-			this.currentTool.onHide();
-	}
-	if(tool){
-		tool.widget.show();
-		if(tool.onShow)
-			tool.onShow();
-	}
-	this.currentTool = tool;
-	this.internal.subTabCurrentButtonReset();
 }
 
 /**

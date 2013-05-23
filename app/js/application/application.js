@@ -313,6 +313,11 @@ function Application() {
 	 */
 	this.data = new ApplicationData(this);
 	
+	/**
+	 * Tool module.
+	 */
+	this.tools = {};
+	
 	// Retrive options
 	var opt = localStorage.getItem('application.options');
 	if(opt){
