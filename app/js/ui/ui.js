@@ -61,7 +61,7 @@ function Ui() {
 		application.quit();
 	}},
 	{key:'tab',name: 'Console', action: function(){
-		ui.consoleTool.focus();
+		application.tools.console.focus();
 	}}
 	];
 	this.updateShortcuts();	
@@ -265,37 +265,27 @@ function Ui() {
 		insertTab(parent,tab,parent.tabMapping[otherName],false);
 		return new SubTabInterface(parent,tab);
 	}
+	/** Creates a new tool panel */
+	this.newToolPanel = function(name) {
+		$("#toolPanels").append('<div id="panel'+name+
+			'" class="viewDiv dontShowAtStart"><h4>'+name+'</h4></div>');
+		var element = document.getElementById("panel"+name);
+		return {
+			widget: $(element)
+		}
+	}
 	
 
 	// Tools
-	this.consoleTool = new ConsoleTool();
-	this.keyboardButtonTool = new KeyboardButtonTool();
-	this.consoleTool.onFocus(this.keyboardButtonTool.reset.bind(
-		this.keyboardButtonTool));
-	this.fpsCounterTool = new FpsCounterTool();
-	application.data.frameDt.on(application.data.EventType.push,
-		function(item) {
-			ui.memoryUsage.setXValueMax(item[0]);
-			ui.fpsCounterTool.onFrame({dt: item[1]/1000.0}); 
-		}
-	);
-	
-	this.frameDt = new FrameDtView();
-	this.profilingResults = new ProfilingTimerView();
-	this.profilingThreads =
-		new ProfilingThreadView(application.data.frameTasksProfilingResults.arrays);
-	application.data.frameTasksProfilingResults.on(application.data.EventType.any,
-		(function() { this.update(true); }).bind(this.profilingThreads));
-		
-	this.memoryUsage = new MemoryUsageView();
+	application.raiseEvent('tools.create');
 	this.shaders = new TextInput("shadersView");
 	
 	// Profiling/Monitoring tab
 	connectTabToSubTabs("Monitor");
-	connectSubTabToTool("Monitor","Graph",this.frameDt);
-	connectSubTabToTool("Monitor","Threads",this.profilingThreads);
-	connectSubTabToTool("Monitor","Timers",this.profilingResults);
-	connectSubTabToTool("Monitor","Memory",this.memoryUsage);
+	connectSubTabToTool("Monitor","Graph",application.tools.frameDt);
+	connectSubTabToTool("Monitor","Threads",application.tools.profilingThreads);
+	connectSubTabToTool("Monitor","Timers",application.tools.profilingResults);
+	connectSubTabToTool("Monitor","Memory",application.tools.memoryUsage);
 	
 	// Data/Assets tab
 	//this.internal.connectSubTabButton($("#tabDataTabShaders"),this.shaders);

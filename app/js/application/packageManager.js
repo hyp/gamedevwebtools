@@ -4,7 +4,7 @@
  * 
  * TODO: dependencies.
  */
-function ApplicationPackageManager(app) {
+function ApplicationPackageManager() {
 	
 	var packages = {};
 	var packageExports = {};
@@ -192,7 +192,7 @@ function ApplicationPackageManager(app) {
 		application.raiseEvent('packages');		
 	}
 	// load packages at startup.
-	app.on('init',loadPackages);
+	application.on('init',loadPackages);
 	
 	/// Reports an installation error.
 	function installationError(name,error) {

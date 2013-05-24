@@ -96,7 +96,7 @@
 <li id="tabHelp"><a data-toggle="tab">Help</a></li>
 </ul>
 
-<div class="tab-content">
+<div id="toolPanels" class="tab-content">
 
     
 <!--Frame dt-->
@@ -108,7 +108,7 @@
 </div>
 
 <!--Thread profiler-->
-<div id="profilingThreadView" class="dontShowAtStart">
+<div id="profilingThreadView" class="viewDiv dontShowAtStart">
 <h4 class="text-left">Task and thread profiler</h4>
 <div class="borderedWidget">
 <canvas class="viewCanvas"></canvas>
@@ -124,7 +124,7 @@
 </div>
 
 <!--Timer profiler-->
-<div id="profilingResultsView" class="dontShowAtStart">
+<div id="profilingResultsView" class="viewDiv dontShowAtStart">
 <h4 class="text-left">Timer profiling results</h4>
 <table class="table table-bordered table-condensed">
 <thead>
@@ -282,9 +282,9 @@
 <script src="js/ui/graphView.js"></script>
 <script src="js/ui/taskThreadView.js"></script>
 <script src="js/ui/sizeBar.js"></script>
-<script src="js/tools/keyboardButton.js"></script>
 <script src="js/tools/fpsCounter.js"></script>
 <script src="js/tools/console.js"></script>
+<script src="js/tools/keyboardButton.js"></script>
 <script src="js/tools/monitoring.js"></script>
 <script src="js/ui/ui.js"></script>
 <script src="js/main.js"></script>

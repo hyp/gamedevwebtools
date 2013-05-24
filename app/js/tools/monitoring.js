@@ -1,3 +1,5 @@
+application.on('tools.create',function() {
+
 /**
  * Delta time graph - 
  * plots raw and filtered(if present) dt for last N frames.
@@ -90,3 +92,20 @@ function ProfilingTimerView() {
 		self.tableBody.html(html);
 	});
 }
+
+
+application.tools.frameDt = new FrameDtView();
+application.tools.memoryUsage = new MemoryUsageView();
+application.data.frameDt.on(application.data.EventType.push,
+	function(item) {
+		application.tools.memoryUsage.setXValueMax(item[0]);
+	});
+
+application.tools.profilingThreads =
+	new ProfilingThreadView(application.data.frameTasksProfilingResults.arrays);
+application.data.frameTasksProfilingResults.on(application.data.EventType.any,
+	(function() { this.update(true); }).bind(application.tools.profilingThreads));
+	
+application.tools.profilingResults = new ProfilingTimerView();
+
+});

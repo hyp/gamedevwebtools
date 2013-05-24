@@ -5,8 +5,14 @@
  * and the actual application.
  */
 var application = null;
+(function() {
+
 function Application() {
 
+	if(application) {
+		throw new Error("Application can only be created once!");
+	}
+	application = this;
 	this.active = true;
 	
 	/// message handlers.
@@ -306,12 +312,12 @@ function Application() {
 	/**
 	 * Package manager.
 	 */
-	this.packages = new ApplicationPackageManager(this);
+	this.packages = new ApplicationPackageManager();
 	
 	/**
 	 * Data.
 	 */
-	this.data = new ApplicationData(this);
+	this.data = new ApplicationData();
 	
 	/**
 	 * Tool module.
@@ -395,3 +401,7 @@ function Application() {
 		if(change) application.raiseEvent('change');
 	});
 }
+
+new Application();
+})();
+

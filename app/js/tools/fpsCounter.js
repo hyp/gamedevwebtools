@@ -1,3 +1,5 @@
+application.on('tools.create',function(){
+
 /**
  * FPS counter computes the FPS of the application by looking at frame dt.
  * 
@@ -38,3 +40,11 @@ FpsCounterTool.prototype.onFrame = function(frame) {
 		this.maximum = Math.max(this.maximum,fps);
 	}
 }
+
+application.tools.fpsCounter = new FpsCounterTool();
+application.data.frameDt.on(application.data.EventType.push,
+	function(item) {
+		application.tools.fpsCounter.onFrame({dt: item[1]/1000.0}); 
+	});
+
+});

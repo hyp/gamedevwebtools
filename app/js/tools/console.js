@@ -1,3 +1,5 @@
+application.on('tools.create',function(){
+
 /**
  * Console tool.
  * 
@@ -104,3 +106,7 @@ ConsoleTool.prototype.onDownKey = function() {
 		this.inputSelector.val(text);
 	}
 }
+
+application.tools.console = new ConsoleTool();
+
+});

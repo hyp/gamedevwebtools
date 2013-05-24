@@ -1,3 +1,5 @@
+application.on('tools.create',function(){
+
 /**
  * Keyboard button enables sending
  * the browser keyboard up and down events to the application.
@@ -56,3 +58,10 @@ KeyboardButtonTool.prototype.onKeyUp = function(event) {
 		}
 	}
 }
+
+application.tools.keyboardInputButton = new KeyboardButtonTool();
+application.tools.console.onFocus(
+	application.tools.keyboardInputButton.reset.bind(
+		application.tools.keyboardInputButton));
+
+});

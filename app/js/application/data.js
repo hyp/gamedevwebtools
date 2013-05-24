@@ -1,7 +1,7 @@
 /**
  * Handles data.
  */
-function ApplicationData(app) {
+function ApplicationData() {
 	var data = this;
 	
 	/**
@@ -145,7 +145,7 @@ function ApplicationData(app) {
 		}
 		
 		// Automatic reset.
-		app.on('data.reset',(function() {
+		application.on('data.reset',(function() {
 			this.clear();
 		}).bind(this));
 	}
@@ -210,7 +210,7 @@ function ApplicationData(app) {
 		}
 		
 		// Automatic reset.
-		app.on('data.reset',(function() {
+		application.on('data.reset',(function() {
 			this.clear();
 		}).bind(this));		
 	}
@@ -249,7 +249,7 @@ function ApplicationData(app) {
 		}
 		
 		// Automatic reset.
-		app.on('data.reset',(function() {
+		application.on('data.reset',(function() {
 			this.clear();
 		}).bind(this));
 	}
@@ -292,17 +292,17 @@ function ApplicationData(app) {
 	}
 	
 	// Message handlers.
-	app.handle("profiling.result", function(val){
+	application.handle("profiling.result", function(val){
 		data.profilingResults.push(val);
 	});
-	app.handle("profiling.task", function(val){
+	application.handle("profiling.task", function(val){
 		data.frameTasksProfilingResults.push(val.frame,val);
 	});
-	app.handle("monitoring.memory", function(val) {
+	application.handle("monitoring.memory", function(val) {
 		// Convert B to MiB
 		data.memoryUsage.push(val.name,val.t,val.size/(1024*1024));
 	});
-	app.handle("monitoring.frame", function(val){
+	application.handle("monitoring.frame", function(val){
 		// Convert s to ms.
 		data.frameDt.push([val.t,val.dt*1000.0]);
 		if((typeof val.rawDt) === "number")
