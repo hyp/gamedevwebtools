@@ -38,8 +38,15 @@ To provide a sample data generating server for the browser client, compile and r
 
 ### Extension packages
 
-Work in progress.
-See [docs/extending.md](http://github.com/hyp/gamedevwebtools/blob/master/docs/extending.md)
+You can use extension packages to extend gamedevwebtools and to
+provide custom tools for your own needs.
+
+An extension package is a zip file containing all its relevant source files.
+You can install an extension package by going into the Options tab and
+and selecting Add new -> Choose file.
+
+For more details about the extension package format and development see
+[docs/extending.md](http://github.com/hyp/gamedevwebtools/blob/master/docs/extending.md)
 
 ### Implementation/protocol details
 

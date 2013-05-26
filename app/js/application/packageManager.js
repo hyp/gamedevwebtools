@@ -2,7 +2,7 @@
  * ApplicationPackageManager is a singleton 
  * responsible for extension packages.
  * 
- * TODO: dependencies.
+ * TODO: dependency fetching.
  */
 function ApplicationPackageManager() {
 	

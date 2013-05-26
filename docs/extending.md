@@ -23,7 +23,9 @@ Fields:
 * version - the version of the package. The version must be a string in the format
   "x"/"x.x"/"x.x.x" where x is a string of digits(0-9).
 * description - the description of the package.
-* dependencies - an array of package names and versions.
+* dependencies - a dictionary with keys which describe the name of the package
+  and values which correspond to the desired version. The version can be "" or "*"
+  to tell the package manager that any version will do.
 
 Example:
 
@@ -32,12 +34,33 @@ Example:
 		"files": ["sample.js"],
 		"version": "1.0",
 		"description": "Just a sample package"
+		"dependencies": {
+			"other": ""
+		}
 	}
+
+### Dependencies.
+
+You can use other packages in your package by using the following code: 
+
+	var packageName = application.packages.require("packageName")
+
+To export a set of functions/values from your package you should return
+an object in one of your js files, for example.
+
+	//my package.js
+	return { doSomething: function() { application.log('Hello world!'); } }
 	
+After exporting, the exported object can be used by othe packages by using
+application.packages.require.
+
 ### Client API
 
-TODO
+Gamedevwebtools provides a set of functions and classes which can be used
+to write the extension packages.
+
+TODO.
 
 ### TODO
 
-Dependencies.
+Extension package server.
