@@ -54,6 +54,13 @@ function ApplicationPackageManager() {
 		return major || (major && minor) || (major && minor && a[2] < b[2]);
 	}
 	
+	/// Returns true if the package version a is less than or equals to the package version b
+	function versionLessEqualsThan(a,b) {
+		var major  = a[0] <= b[0];
+		var minor = a[1] <= b[1];
+		return major || (major && minor) || (major && minor && a[2] <= b[2]);
+	}
+	
 	/// Verifies the package.
 	function verify(package) {
 		function error(msg) {
@@ -79,10 +86,19 @@ function ApplicationPackageManager() {
 				if(!Array.isArray(value)) {
 					error("The files of the package must be an array");
 				}
+				for(var i = 0;i < value.length;++i) {
+					if((typeof value[i]) !== "string")
+						error("The files of the package must be an array of strings");
+				}
 				break;
 			case "dependencies":
-				if(!Array.isArray(value)) {
-					error("The dependencies of the package must be an array");
+				if((typeof value) !== "object") {
+					error("The dependencies of the package must be an object");
+				}
+				for (var key in value) {
+					if((typeof value[key]) !== "string")
+						error("The dependency version for '"+key+
+							"' must be a string");
 				}
 				break;
 			default:
@@ -135,10 +151,49 @@ function ApplicationPackageManager() {
 		packageExports[packageName] = stuff;
 	}
 	
+	/// Checks if a package with a given version is intalled
+	function isInstalled(packageName,packageVersion) {
+		if(!(packageName in packages)) return false;
+		var hasVersion = "version" in packages[packageName];
+		var acceptAnyVersion = packageVersion == "" || packageVersion == "*";
+		if(acceptAnyVersion) return true;
+		if(!hasVersion) return false;
+		
+		var acceptedVersion = parseVersion(packageVersion);
+		var version = parseVersion(packages[packageName].version);
+		return versionLessEqualsThan(acceptedVersion,version);
+	}
+	
+	/// Checks if a packages with a given name is already running
+	function isStarted(packageName) {
+		if(!(packageName in packageExports)) return false;
+		return true;
+	}
+	
+	/// Checks package dependencies
+	function checkDependencies(package, response) {
+		if(!("dependencies" in package)) return;
+		for (var key in package.dependencies) {
+			var depVersion = package.dependencies[key];
+			if(!isInstalled(key,depVersion) || !isStarted(key)) {
+				response(key,depVersion);
+			}
+		}
+	}
+	
 	/// Executes the package.
 	function runPackage(package) {
 		if(!package.enabled) return true;
 		var success = true;
+		checkDependencies(package, function(name, version) {
+			application.error(
+				"Couldn't start the package '"+package.name+
+				"' - the dependency '"+name+"' "+version+
+				" isn't installed"); 
+			success = false;
+		});
+		if(!success) return;
+		
 		try {
 			// See: http://stackoverflow.com/questions/707565/how-do-you-add-css-with-javascript
 			function insertCss(code) {
@@ -161,6 +216,7 @@ function ApplicationPackageManager() {
 			var result = f();
 			if((typeof result) == "object")
 				provide(package.name,result);
+			else provide(package.name,{});
 		} catch(e) {
 			success = false;
 			application.error(
